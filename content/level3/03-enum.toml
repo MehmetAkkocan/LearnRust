@@ -1,0 +1,178 @@
+id = "3-03"
+title = "Enum: Belli Seçeneklerden Biri"
+read_points = 10
+body_md = '''
+## Neden
+
+Bazı değerler birkaç seçenekten yalnızca biri olabilir. Yön buna iyi bir
+örnek: kuzey, doğu, güney ya da batı. Bunu sayıyla tutabilirsin (0 kuzey,
+1 doğu...), ama o zaman biri yanlışlıkla `7` yazar ve derleyici hiçbir şey
+demez. Metinle tutarsan bu kez `"kuzy"` gibi bir yazım hatası gözden kaçar.
+`enum` ile seçenekleri tek tek sayarsın; o tipten bir değer bunlardan biri
+olmak zorundadır. Listede olmayan bir şey yazarsan program derlenmez.
+
+## Nasıl
+
+Enum'un her seçeneğine variant denir. Bir variant yalın bir ad olabilir ya da
+yanında veri taşıyabilir.
+
+```rust
+enum Message {
+    Quit,                    // veri taşımaz
+    Move { x: i32, y: i32 }, // adlı alanlar, struct gibi
+    Write(String),           // adsız alan, tuple gibi
+}
+
+let m = Message::Write(String::from("selam"));
+```
+
+Variant'ı `EnumAdi::Variant` diye yazarsın. Hangi variant olursa olsun değerin
+tipi `Message`'dır; hepsini aynı fonksiyona verebilirsin.
+
+Elindeki değerin hangi variant olduğuna `match` ile bakarsın. Her satır bir
+koldur (arm): solda desen, `=>` işaretinden sonra o durumda üretilecek değer.
+
+```rust
+fn is_quit(m: &Message) -> bool {
+    match m {
+        Message::Quit => true,
+        _ => false,
+    }
+}
+```
+
+`_` "geri kalan her şey" demektir. `match`'i iki ders sonra ayrıntılı
+göreceksin; şimdilik bu kadarı yeter.
+
+Struct'ta olduğu gibi enum'a da `impl` ile metot ekleyebilirsin. Veri
+taşımayan enum'larda `#[derive(Debug, PartialEq, Clone, Copy)]` yazmak işini
+kolaylaştırır: değerleri `==` ile karşılaştırırsın, bir değeri başka bir yere
+verdiğinde de taşınmaz, kopyalanır.
+
+## Dikkat
+
+- `match` bütün variant'ları karşılamak zorundadır. Birini unutursan kod
+  derlenmez ve derleyici eksik olanı söyler:
+  `` non-exhaustive patterns: `Message::Write(_)` not covered ``. Enum'a
+  sonradan variant eklediğinde de aynı hata, güncellemen gereken yerleri tek
+  tek gösterir.
+- `PartialEq` derive etmediysen iki enum değerini `==` ile karşılaştıramazsın.
+- Variant'ın adını tek başına yazamazsın: `Quit` değil, `Message::Quit`.
+  (`use Message::*;` yazarsan ön eke gerek kalmaz; `use`'u bu seviyenin son
+  dersinde göreceksin.)
+'''
+example = '''
+#[derive(Debug)]
+enum Message {
+    Quit,
+    Move { x: i32, y: i32 },
+    Write(String),
+}
+
+impl Message {
+    fn describe(&self) -> String {
+        match self {
+            Message::Quit => String::from("çık"),
+            Message::Move { x, y } => format!("git: {}, {}", x, y),
+            Message::Write(text) => format!("yaz: {}", text),
+        }
+    }
+}
+
+fn main() {
+    // vec![...] bir liste oluşturur (ayrıntısı Seviye 4'te); for ile sırayla dolaşıyoruz
+    let msgs = vec![
+        Message::Quit,
+        Message::Move { x: 3, y: -1 },
+        Message::Write(String::from("selam")),
+    ];
+    for m in &msgs {
+        println!("{:?} -> {}", m, m.describe());
+    }
+}
+'''
+
+[exercise]
+prompt = "`Direction` için üç fonksiyon yaz. `turn_right(d)`: yönü saat yönünde bir adım çevirir (North -> East -> South -> West -> North). `opposite(d)`: tam karşı yönü döndürür (North <-> South, East <-> West). `is_vertical(d)`: yön North ya da South ise `true`, değilse `false` döndürür. Üçünü de `match` ile yazabilirsin; tek tek saymak istemediğin durumlar için `_` kolunu kullan."
+starter = '''
+#[derive(Debug, PartialEq, Clone, Copy)]
+enum Direction {
+    North,
+    East,
+    South,
+    West,
+}
+
+fn turn_right(d: Direction) -> Direction {
+    todo!()
+}
+
+fn opposite(d: Direction) -> Direction {
+    todo!()
+}
+
+fn is_vertical(d: Direction) -> bool {
+    todo!()
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn saga_don() {
+        assert_eq!(turn_right(Direction::North), Direction::East);
+        assert_eq!(turn_right(Direction::East), Direction::South);
+        assert_eq!(turn_right(Direction::South), Direction::West);
+        assert_eq!(turn_right(Direction::West), Direction::North);
+    }
+
+    #[test]
+    fn zit() {
+        assert_eq!(opposite(Direction::North), Direction::South);
+        assert_eq!(opposite(Direction::East), Direction::West);
+        assert_eq!(opposite(Direction::South), Direction::North);
+        assert_eq!(opposite(Direction::West), Direction::East);
+    }
+
+    #[test]
+    fn dikey() {
+        assert!(is_vertical(Direction::North));
+        assert!(is_vertical(Direction::South));
+        assert!(!is_vertical(Direction::East));
+        assert!(!is_vertical(Direction::West));
+    }
+}
+'''
+solution = '''
+#[derive(Debug, PartialEq, Clone, Copy)]
+enum Direction {
+    North,
+    East,
+    South,
+    West,
+}
+
+fn turn_right(d: Direction) -> Direction {
+    match d {
+        Direction::North => Direction::East,
+        Direction::East => Direction::South,
+        Direction::South => Direction::West,
+        Direction::West => Direction::North,
+    }
+}
+
+fn opposite(d: Direction) -> Direction {
+    turn_right(turn_right(d))
+}
+
+fn is_vertical(d: Direction) -> bool {
+    match d {
+        Direction::North => true,
+        Direction::South => true,
+        _ => false,
+    }
+}
+'''
+points = 30

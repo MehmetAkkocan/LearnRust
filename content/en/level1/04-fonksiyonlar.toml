@@ -1,0 +1,77 @@
+title = "Functions"
+body_md = '''
+## Why
+
+A function gives a name to a piece of code that does one job. You don't
+rewrite that job every time you need it, you call it by name; and you can test
+each piece on its own. In Rust the first line of a function says what it takes
+and what it returns, with their types. The compiler checks both the inside of
+the function and every place that calls it against that line. In this app's
+exercises, too, you write the inside of a function whose first line is already
+given.
+
+## How
+
+```rust
+fn add(a: i32, b: i32) -> i32 {
+    a + b
+}
+```
+
+- The definition starts with `fn`, followed by the function's name.
+- You must write the type of every parameter.
+- The type of the value it returns goes after the `->` arrow. With no `->`,
+  the function returns no value; its return type is then `()`.
+- If the last line of the body has no semicolon at the end, the value of that
+  line is what the function returns. To leave earlier, you write `return`.
+
+To call it, write its name and the values: `let sum = add(2, 3);`
+
+Behind the last-line rule is this distinction: an expression produces a value,
+a statement does something but produces no value. `a + b` is an expression,
+`let y = 6;` is a statement. A block in curly braces is an expression too; its
+value is the value of the last expression inside it:
+
+```rust
+let x = { let a = 1; a + 1 }; // x = 2
+```
+
+To return more than one value, return a tuple:
+
+```rust
+fn sum_and_diff(a: i32, b: i32) -> (i32, i32) {
+    (a + b, a - b)
+}
+```
+
+You can take the returned tuple apart into two separate variables: after
+`let (s, d) = sum_and_diff(9, 2);`, `s` is 11 and `d` is 7.
+
+## Watch out
+
+- `fn five() -> i32 { 5; }` does not compile. The semicolon turns the
+  expression `5` into a statement; there is no value left to return, so the
+  function returns `()`. The compiler says `mismatched types`: it expected
+  `i32` and found `()`. Delete the semicolon and it works.
+- The type of the value you pass must be the same as the parameter's type.
+  You can't pass a `u32` to a function that expects an `i32`; convert it with
+  `as i32` first.
+- You can't define two functions with the same name. Some languages let
+  functions with different parameters share a name (overloading); Rust
+  doesn't.
+'''
+
+[exercise]
+prompt = "Write the function `divmod(a: i32, b: i32) -> (i32, i32)`. Divide `a` by `b` and return the quotient and the remainder, in that order, in a tuple. Example: `divmod(17, 5)` → `(3, 2)`. `b` is never zero. Hint: for integers, `/` gives the quotient and `%` gives the remainder."
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn quotient_and_remainder() {
+        assert_eq!(divmod(17, 5), (3, 2));
+        assert_eq!(divmod(10, 2), (5, 0));
+        assert_eq!(divmod(3, 7), (0, 3));
+    }
+}
+'''

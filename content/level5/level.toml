@@ -1,0 +1,137 @@
+id = 5
+slug = "ileri-temel"
+title = "İleri Konular"
+description = "Lifetime, closure, iterator adaptörleri, kendi iterator'ını yazmak, Box, cargo ile test ve belge, modülleri düzenlemek."
+
+[[quiz.mcq]]
+id = "5-m1"
+q = "Bir fonksiyon imzasına yazdığın `'a` ne işe yarar?"
+choices = ["Referansın daha uzun süre geçerli kalmasını sağlar", "Referansların geçerlilik sürelerinin birbirine nasıl bağlı olduğunu derleyiciye anlatır", "Değeri heap'e taşır", "Referansı çalışma zamanında denetler"]
+answer = 1
+
+[[quiz.mcq]]
+id = "5-m2"
+q = "Bir closure, yakaladığı `String`'i gövdesinde tüketiyor (başka bir yere taşıyor). Bu closure aşağıdakilerden hangisini uygular?"
+choices = ["Fn", "FnMut", "Copy", "FnOnce"]
+answer = 3
+
+[[quiz.mcq]]
+id = "5-m3"
+q = "`v.iter().map(|x| x * 2);` satırını tek başına yazarsan ne olur?"
+choices = ["Hiçbir şey çalışmaz; adaptörler tembeldir, `collect` gibi bir tüketici gerekir", "`v`'nin öğeleri yerinde ikiye katlanır", "Yeni bir `Vec` oluşur", "Kod derlenmez"]
+answer = 0
+
+[[quiz.mcq]]
+id = "5-m4"
+q = "`Box::new(5)` yazdığında `5` değeri nerede durur?"
+choices = ["Stack'te", "Programın sabit (static) belleğinde", "Heap'te; stack'te yalnız adresi durur", "İşlemcinin register'ında"]
+answer = 2
+
+[[quiz.mcq]]
+id = "5-m5"
+q = "`pub(crate)` yazdığın bir fonksiyonu kim kullanabilir?"
+choices = ["Herkes; başka crate'ler de", "Aynı crate içindeki bütün kod", "Yalnız tanımlandığı modül", "Yalnız test modülü"]
+answer = 1
+
+[[quiz.coding]]
+id = "5-q1"
+prompt = "`compose(f, g)` iki closure alır ve yeni bir closure döndürür. Yeni closure önce `f`'yi, sonra onun sonucuna `g`'yi uygular; yani `compose(f, g)` ile elde ettiğin closure'a `x` verince `g(f(x))` döner. Örnek: `f` bir ekliyor (`|x| x + 1`), `g` 10 ile çarpıyorsa (`|x| x * 10`), sonuç `2` için `30` verir. İpucu: `f` ve `g`'yi döndürdüğün closure'ın içine taşımak için `move` yaz."
+starter = '''
+fn compose(
+    f: Box<dyn Fn(i32) -> i32>,
+    g: Box<dyn Fn(i32) -> i32>,
+) -> Box<dyn Fn(i32) -> i32> {
+    todo!()
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn sirayla_uygular() {
+        let h = compose(Box::new(|x| x + 1), Box::new(|x| x * 10));
+        assert_eq!(h(2), 30);
+        assert_eq!(h(-1), 0);
+    }
+    #[test]
+    fn yakalanan_deger() {
+        let n = 5;
+        let h = compose(Box::new(move |x| x + n), Box::new(move |x| x - n));
+        assert_eq!(h(7), 7);
+    }
+}
+'''
+solution = '''
+fn compose(
+    f: Box<dyn Fn(i32) -> i32>,
+    g: Box<dyn Fn(i32) -> i32>,
+) -> Box<dyn Fn(i32) -> i32> {
+    Box::new(move |x| g(f(x)))
+}
+'''
+points = 50
+
+[[quiz.coding]]
+id = "5-q2"
+prompt = "`Fib` için `Iterator` trait'ini tamamla. `next` her çağrıda Fibonacci dizisinin sıradaki sayısını versin: 0, 1, 1, 2, 3, 5, 8, ... (ilk iki sayıdan sonra her sayı, kendinden önceki iki sayının toplamıdır). Dizi sonsuzdur: `next` hiç `None` döndürmez, hep `Some` döndürür. Alanlardan `a` sıradaki sayıyı, `b` ondan sonrakini tutar."
+starter = '''
+struct Fib {
+    a: u64,
+    b: u64,
+}
+
+impl Fib {
+    fn new() -> Fib {
+        Fib { a: 0, b: 1 }
+    }
+}
+
+impl Iterator for Fib {
+    type Item = u64;
+
+    fn next(&mut self) -> Option<u64> {
+        todo!()
+    }
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn ilk_sekiz() {
+        let v: Vec<u64> = Fib::new().take(8).collect();
+        assert_eq!(v, vec![0, 1, 1, 2, 3, 5, 8, 13]);
+    }
+    #[test]
+    fn adaptorlerle() {
+        let toplam: u64 = Fib::new().take(10).filter(|x| x % 2 == 0).sum();
+        assert_eq!(toplam, 44);
+    }
+}
+'''
+solution = '''
+struct Fib {
+    a: u64,
+    b: u64,
+}
+
+impl Fib {
+    fn new() -> Fib {
+        Fib { a: 0, b: 1 }
+    }
+}
+
+impl Iterator for Fib {
+    type Item = u64;
+
+    fn next(&mut self) -> Option<u64> {
+        let current = self.a;
+        self.a = self.b;
+        self.b = current + self.b;
+        Some(current)
+    }
+}
+'''
+points = 50

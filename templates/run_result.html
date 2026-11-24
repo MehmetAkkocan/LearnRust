@@ -1,0 +1,10 @@
+<div class="{{ class_name }}">
+  <p class="result-title"><strong>{{ title }}</strong></p>
+  {% if !output.is_empty() %}<pre class="output"><code>{{ output }}</code></pre>{% endif %}
+  {% if !gained_msg.is_empty() %}<p class="gain">{{ gained_msg }}</p>{% endif %}
+  {% if !note.is_empty() %}<p class="note">{{ note }}</p>{% endif %}
+  {% include "badges.html" %}
+  {% include "unlock.html" %}
+  {% if !next_href.is_empty() %}<p class="next-link"><a class="button" href="{{ next_href }}">{{ next_label }} &rarr;</a></p>{% endif %}
+</div>
+{% include "stats.html" %}

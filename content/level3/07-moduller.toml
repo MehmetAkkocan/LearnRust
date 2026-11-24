@@ -1,0 +1,161 @@
+id = "3-07"
+title = "Modüller: mod, pub, use"
+read_points = 10
+body_md = '''
+## Neden
+
+Program büyüdükçe fonksiyonlar ve tipler çoğalır. Hepsi aynı yerde durursa
+aradığını bulmak zorlaşır, adlar da çakışmaya başlar: aynı yerde iki ayrı
+`area` fonksiyonu yazamazsın. Modül, kodu adı olan bölmelere ayırır.
+Birbiriyle ilgili şeyler aynı modülde durur; `rect::area` ile `circle::area`
+yan yana yaşar. İkinci kazancın gizliliktir: modülün içinden neyin dışarıya
+açılacağına sen karar verirsin. Açmadıkların senin iç işindir; onları sonradan
+değiştirirsen modülü kullanan kod bozulmaz.
+
+## Nasıl
+
+Modülü `mod` ile tanımlarsın. Bu derste her şey tek dosyada.
+
+```rust
+mod geometry {
+    pub fn square_area(side: u32) -> u32 {
+        side * side
+    }
+
+    pub mod rect {
+        pub fn area(w: u32, h: u32) -> u32 {
+            w * h
+        }
+    }
+}
+
+use geometry::rect;
+
+fn main() {
+    let a = geometry::square_area(3);
+    let b = rect::area(2, 5);
+    println!("{} {}", a, b); // 9 10
+}
+```
+
+- Modülün içindeki her şey baştan özeldir (private): yalnızca o modülün
+  içinden görünür. Dışarıdan kullanılsın istiyorsan başına `pub` yaz.
+- Bir öğeye, yolunu `::` ile yazarak ulaşırsın: `geometry::rect::area(2, 5)`.
+  Yol bulunduğun yerden başlar; `geometry`'nin içindeyken `rect::area(2, 5)`
+  yazman yeter.
+- `use` uzun yolu kısaltır. `use geometry::rect;` yazdıktan sonra `rect::area`
+  demen yeter.
+- Modülün içinden bir üst modüle `super::` ile, kendi modülüne `self::` ile
+  ulaşırsın.
+- `pub struct` yazsan da alanları özel kalır. Dışarıdan değer oluşturulabilsin
+  diye genellikle `pub fn new(...)` gibi bir associated function yazılır.
+
+## Dikkat
+
+- `pub`'ı unutursan derleyici `` function `area` is private `` der. Yani "bu
+  fonksiyon var, ama buradan ulaşamazsın".
+- Modülü `pub` yapmak içindekileri açmaz. `pub mod rect` yazsan bile `area`
+  için ayrıca `pub` gerekir.
+- Tek dosyada olmak bir şeyi değiştirmez: dıştaki kod, modülün özel öğelerine
+  ulaşamaz. Tersi serbesttir; içteki modül, dıştakinin özel öğelerini görür.
+- `use` bir şeyi kopyalamaz, yalnızca ona kısa bir ad verir. İki yerden aynı
+  ad geliyorsa birini yeniden adlandır: `use a::f as g;`.
+'''
+example = '''
+mod bank {
+    pub struct Account {
+        owner: String,
+        balance: i64,
+    }
+
+    impl Account {
+        pub fn new(owner: &str, balance: i64) -> Self {
+            Account { owner: owner.to_string(), balance }
+        }
+
+        pub fn summary(&self) -> String {
+            format!("{}: {}", self.owner, self.balance)
+        }
+    }
+
+    pub mod util {
+        pub fn double(x: i64) -> i64 {
+            helper(x)
+        }
+
+        // pub değil: yalnızca util modülünün içinden çağrılabilir
+        fn helper(x: i64) -> i64 {
+            x * 2
+        }
+    }
+}
+
+use bank::util;
+use bank::Account;
+
+fn main() {
+    let a = Account::new("Ayşe", 100);
+    println!("{}", a.summary());
+    println!("{}", util::double(21));
+}
+'''
+
+[exercise]
+prompt = "Hazır koddaki üç fonksiyonun içini doldur. `geometry::rect::area(w, h)`: `w * h` döndürür. `geometry::rect::perimeter(w, h)`: `2 * (w + h)` döndürür; örn. 3 ve 4 için 14. `geometry::square_area(side)`: karenin alanını döndürür; çarpmayı burada kendin yapma, `rect::area` fonksiyonunu çağır. Modüllerin ve fonksiyonların başındaki `pub`'ları silme; silersen testler bu fonksiyonlara ulaşamaz."
+starter = '''
+mod geometry {
+    pub mod rect {
+        pub fn area(w: u32, h: u32) -> u32 {
+            todo!()
+        }
+
+        pub fn perimeter(w: u32, h: u32) -> u32 {
+            todo!()
+        }
+    }
+
+    pub fn square_area(side: u32) -> u32 {
+        todo!()
+    }
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn dikdortgen_alani() {
+        assert_eq!(geometry::rect::area(3, 4), 12);
+        assert_eq!(geometry::rect::area(0, 9), 0);
+    }
+
+    #[test]
+    fn cevre() {
+        assert_eq!(geometry::rect::perimeter(3, 4), 14);
+    }
+
+    #[test]
+    fn kare_alani() {
+        assert_eq!(geometry::square_area(5), 25);
+    }
+}
+'''
+solution = '''
+mod geometry {
+    pub mod rect {
+        pub fn area(w: u32, h: u32) -> u32 {
+            w * h
+        }
+
+        pub fn perimeter(w: u32, h: u32) -> u32 {
+            2 * (w + h)
+        }
+    }
+
+    pub fn square_area(side: u32) -> u32 {
+        rect::area(side, side)
+    }
+}
+'''
+points = 30

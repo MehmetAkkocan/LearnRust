@@ -1,0 +1,110 @@
+title = "Closures: Fn, FnMut, FnOnce and move"
+body_md = '''
+## Why
+
+Sometimes you want to hand a function behavior, not data: "sort by this
+rule", "do this to every item". Writing a separate `fn` each time is
+tiring. A closure is a nameless function written right where you need it.
+Unlike a normal function, it can use the variables around it; this is
+called capturing.
+
+## How
+
+Parameters go between two vertical bars, and the body follows:
+
+```rust
+let n = 10;
+let add = |x: i32| x + n; // captures n
+println!("{}", add(5));   // 15
+```
+
+Closures have three traits. The compiler looks at what the closure does
+with its captured values and decides which ones it implements:
+
+- `FnOnce`: callable at least once. Every closure implements it; one that
+  consumes a captured value (moves it out, say) implements only this.
+- `FnMut`: callable many times; may change what it captured.
+- `Fn`: callable many times; only reads what it captured.
+
+So an `Fn` closure is also `FnMut` and `FnOnce`, but not the reverse.
+
+In a function that takes a closure, pick the trait bound that does the
+job and asks the least of the closure:
+
+- `F: FnOnce(...)`: accepts every closure, but you can call it only once.
+- `F: FnMut(...)`: you can call it many times; closures that consume a
+  value are rejected.
+- `F: Fn(...)`: accepts the fewest closures: only those that just read.
+
+By default a closure borrows the variables it uses. With `move` in front,
+the values are moved into it. You need this to return a closure from a
+function, because local variables are dropped when the function ends:
+
+```rust
+fn make_adder(n: i32) -> Box<dyn Fn(i32) -> i32> {
+    Box::new(move |x| x + n)
+}
+```
+
+## Watch out
+
+- Forget `move` here and the compiler says
+  `closure may outlive the current function`: it could outlive the
+  variable it borrowed.
+- `move` only changes how values are captured. The `make_adder` closure
+  uses `move` but is still `Fn`, because it only reads `n`.
+- Declare a closure that changes a captured value with `let mut`;
+  otherwise you cannot call it.
+- Every closure has its own nameless type. That is why you write
+  `Box<dyn Fn(i32) -> i32>` as a return type, or to keep different
+  closures in one `Vec`.
+- A value moved in by `move` that is not `Copy` (a `String`, say) can no
+  longer be used outside.
+'''
+example = '''
+fn apply_twice<F: Fn(i32) -> i32>(f: F, x: i32) -> i32 {
+    f(f(x))
+}
+
+fn make_adder(n: i32) -> Box<dyn Fn(i32) -> i32> {
+    Box::new(move |x| x + n)
+}
+
+fn main() {
+    let add5 = make_adder(5);
+    println!("{}", apply_twice(&add5, 1));
+
+    let mut counter = 0;
+    let mut inc = || {
+        counter += 1;
+        counter
+    };
+    inc();
+    inc();
+    println!("counter: {}", counter);
+
+    let name = String::from("Rust");
+    let consume = move || name;
+    let owned = consume();
+    println!("{}", owned);
+}
+'''
+
+[exercise]
+prompt = "`make_adder(n)` returns a closure that adds `n` to the number it is given. Example: give `4` to the closure you get from `make_adder(3)` and it returns `7`. `apply_twice(f, x)` applies `f` twice in a row, that is, it returns `f(f(x))`. Example: `apply_twice(|x| x * 2, 5)` → `20`. Hint: put the closure inside `Box::new(...)` and write `move` in front of it to move `n` into the closure."
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn adder() {
+        let add3 = make_adder(3);
+        assert_eq!(add3(4), 7);
+    }
+    #[test]
+    fn twice() {
+        assert_eq!(apply_twice(|x| x * 2, 5), 20);
+        assert_eq!(apply_twice(make_adder(3), 10), 16);
+    }
+}
+'''

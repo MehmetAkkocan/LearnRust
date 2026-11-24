@@ -1,0 +1,111 @@
+id = "7-04"
+title = "Performans: Allocation ve Ölçüm"
+read_points = 10
+body_md = '''
+## Neden
+
+Rust hızlıdır, ama her şeyi senin yerine hızlı yapmaz. En sık görülen gizli maliyet allocation'dır, yani heap'ten yer istemek. `String` ve `Vec` içeriklerini heap'te tutar. Ayırdıkları yer (kapasite) dolunca daha büyük bir yer ister ve eski içeriği oraya kopyalarlar. Bir kez olunca fark etmezsin; milyon kez dönen bir döngüde ise süre buraya gider. Yine de tahminle iş yapma: önce ölç, yavaş olan yeri bul, sonra düzelt.
+
+## Nasıl
+
+Üç alışkanlık gereksiz allocation'ların çoğunu önler:
+
+- **Yalnızca okuyacaksan ödünç al.** Parametreyi sadece okuyorsan `String` yerine `&str`, `Vec<T>` yerine `&[T]` iste. Çağıran kişi değeri sana vermek ya da `clone` etmek zorunda kalmaz. Dönüşte de aynısı geçerli: sonuç girdinin bir parçasıysa yeni `String` üretme, o parçayı `&str` olarak döndür.
+- **Yeri baştan ayır.** Kaç eleman geleceğini biliyorsan `Vec::with_capacity(n)` ya da `String::with_capacity(n)` ile başla. Yer tek seferde ayrılır, araya büyüme girmez.
+- **Gereksiz `clone()` ve ara koleksiyon üretme.** Sırf üzerinden bir kez geçmek için `collect()` ile `Vec` kurma; iterator zincirini doğrudan kullan.
+
+```rust
+let mut out = String::with_capacity(total_len);
+for part in parts {
+    out.push_str(part);
+}
+```
+
+Ölçmek için `std::time::Instant::now()` ile başlangıç anını al; iş bitince `elapsed()` geçen süreyi verir. Kaba bir ölçümdür ama fikir verir. Her zaman `cargo build --release` ile derlenmiş programı ölç. Derleyici, sonucu kullanılmayan kodu tümden silebilir; ölçtüğün değeri `std::hint::black_box(..)` içinden geçirirsen bunu yapmaz.
+
+## Dikkat
+
+- Ölçmeden optimizasyon yapma. Yanlış yeri hızlandırırsan elinde yalnızca daha karışık bir kod kalır.
+- Debug derlemesinde aldığın süreler seni yanıltır; optimizasyonlar kapalıdır.
+- `with_capacity(n)` en az `n` elemanlık yer ayırır. Gereğinden büyük sayı verirsen bellek boşa gider. Küçük verirsen hata olmaz, yalnızca sonradan yine büyür.
+- Hızlandırdığın fonksiyon aynı sonucu vermeye devam etmeli. Bunu sana testlerin söyler.
+'''
+example = '''
+fn count_growths(mut s: String, n: usize) -> usize {
+    let mut last = s.capacity();
+    let mut growths = 0;
+    for _ in 0..n {
+        s.push('x');
+        if s.capacity() != last {
+            growths += 1;
+            last = s.capacity();
+        }
+    }
+    growths
+}
+
+fn main() {
+    println!("kapasite ayırmadan: {} kez büyüdü", count_growths(String::new(), 1000));
+    println!("kapasite ayırarak: {} kez büyüdü", count_growths(String::with_capacity(1000), 1000));
+}
+'''
+
+[exercise]
+prompt = "İki fonksiyon da şu an yanlış çalışıyor; düzelt. (1) `build_csv(items)` parçaları aralarına virgül koyarak birleştirir, sonda virgül olmaz: `[\"a\", \"b\", \"c\"]` → `\"a,b,c\"`, `[\"solo\"]` → `\"solo\"`, boş liste → `\"\"`. Sonucun uzunluğunu baştan hesapla ve yeri `String::with_capacity` ile tek seferde ayır. (2) `first_word(s)` metindeki ilk kelimeyi yeni `String` üretmeden `&str` olarak döndürür. Baştaki boşlukları atlar, kelime yoksa `\"\"` döndürür: `\"hello world\"` → `\"hello\"`, `\"  lead x\"` → `\"lead\"`. İpucu: `split_whitespace()`."
+starter = '''
+fn build_csv(items: &[&str]) -> String {
+    let mut out = String::new();
+    for item in items {
+        out.push_str(item);
+        out.push(',');
+    }
+    out
+}
+
+fn first_word(s: &str) -> &str {
+    s
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn csv_joins_without_trailing_comma() {
+        assert_eq!(build_csv(&["a", "b", "c"]), "a,b,c");
+        assert_eq!(build_csv(&["solo"]), "solo");
+        assert_eq!(build_csv(&[]), "");
+    }
+    #[test]
+    fn csv_reserves_capacity() {
+        let s = build_csv(&["ab", "cd"]);
+        assert_eq!(s, "ab,cd");
+        assert!(s.capacity() >= 5);
+    }
+    #[test]
+    fn first_word_works() {
+        assert_eq!(first_word("hello world"), "hello");
+        assert_eq!(first_word("  lead x"), "lead");
+        assert_eq!(first_word(""), "");
+        assert_eq!(first_word("tek"), "tek");
+    }
+}
+'''
+solution = '''
+fn build_csv(items: &[&str]) -> String {
+    let total: usize = items.iter().map(|s| s.len()).sum::<usize>() + items.len();
+    let mut out = String::with_capacity(total);
+    for (i, item) in items.iter().enumerate() {
+        if i > 0 {
+            out.push(',');
+        }
+        out.push_str(item);
+    }
+    out
+}
+
+fn first_word(s: &str) -> &str {
+    s.split_whitespace().next().unwrap_or("")
+}
+'''
+points = 30

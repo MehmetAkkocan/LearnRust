@@ -1,0 +1,214 @@
+title = "Writing Your Own Error Type"
+body_md = '''
+## Why
+
+All `ParseIntError` tells you is "this text couldn't be turned into a
+number". Your program's errors are about its own job: "the port was left
+empty", "the age is negative", "user not found". If you return them as a
+plain `String` message, the code that calls you has to compare text to
+find out which error happened. Write the errors as an `enum` instead and
+each kind of error becomes a variant; the caller uses `match` to see which
+one it is and acts on it.
+
+## How
+
+There are three steps: put the errors in an enum, write a message for each
+one with `Display`, and add the `Error` trait.
+
+```rust
+use std::error::Error;
+use std::fmt;
+
+#[derive(Debug, PartialEq)]
+enum AgeError {
+    Negative,
+    TooHigh(u32),
+}
+
+impl fmt::Display for AgeError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            AgeError::Negative => write!(f, "age cannot be negative"),
+            AgeError::TooHigh(n) => write!(f, "{} is too high", n),
+        }
+    }
+}
+
+impl Error for AgeError {}
+```
+
+`Display` and `Error` are traits. Traits are the topic of the next lesson;
+for now, think of one as "a list of methods a type has to write".
+
+- `Display` decides how the type is printed with `{}`, and you write it by
+  hand. `write!(f, "...")` works just like `println!`, except that it
+  writes to `f` instead of the screen. Once you have `Display`, you get
+  the `to_string()` method for free.
+- `Debug` (the `{:?}` output) comes from `derive`.
+- The `impl Error for AgeError {}` block can stay empty. But the type must
+  have both `Debug` and `Display`; if either is missing, the code doesn't
+  compile.
+- If you derive `PartialEq`, you can compare errors with `==`. You need
+  that to write `assert_eq!(f(x), Err(AgeError::Negative))` in a test.
+
+Now your function can return `Result<u32, AgeError>`; to report an error
+you write `return Err(AgeError::Negative);`.
+
+If you want to return errors of different types from the same function,
+make the return type `Result<T, Box<dyn Error>>`. `Box<dyn Error>` means
+"any error that implements the `Error` trait"; in such a function, `?`
+converts the error to this type on its own. We'll come back to `Box` and
+`dyn` in the last lesson of this level.
+
+## Watch out
+
+- Keep the `Display` message short, start it with a lowercase letter, and
+  leave off the final period; that way it still reads well when it ends up
+  inside another message. `Display` is the message shown to the user,
+  `Debug` is the output a developer looks at.
+- You can put data inside a variant (`TooHigh(u32)`), so the error carries
+  details too. To derive `PartialEq`, the types inside must also be
+  comparable with `==`.
+- If you return the error as `Box<dyn Error>`, the caller can no longer
+  easily `match` on which variant came back. When the caller has to decide
+  based on the error, return your own enum.
+'''
+example = '''
+use std::error::Error;
+use std::fmt;
+
+#[derive(Debug, PartialEq)]
+enum AgeError {
+    NotNumber,
+    Negative,
+}
+
+impl fmt::Display for AgeError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            AgeError::NotNumber => write!(f, "not a number"),
+            AgeError::Negative => write!(f, "age cannot be negative"),
+        }
+    }
+}
+
+impl Error for AgeError {}
+
+fn parse_age(s: &str) -> Result<u32, AgeError> {
+    let n: i64 = match s.trim().parse() {
+        Ok(n) => n,
+        Err(_) => return Err(AgeError::NotNumber),
+    };
+    if n < 0 {
+        return Err(AgeError::Negative);
+    }
+    Ok(n as u32)
+}
+
+fn run() -> Result<(), Box<dyn Error>> {
+    let age = parse_age("30")?;
+    println!("Age: {}", age);
+    let bad = parse_age("-5")?;
+    println!("Never reached: {}", bad);
+    Ok(())
+}
+
+fn main() {
+    if let Err(e) = run() {
+        println!("Error: {}", e);
+    }
+}
+'''
+
+[exercise]
+prompt = '''The `PortError` enum is ready; write two things. (1) `Display`: it writes `"empty input"` for `Empty`, `"invalid number"` for `Invalid`, and `"port cannot be zero"` for `Zero`. (2) `parse_port(s: &str) -> Result<u16, PortError>`: first remove the whitespace at the start and end. If nothing is left, return `Err(PortError::Empty)`; if the remaining text can't be turned into a `u16` (`"abc"`, or `"70000"`, which doesn't fit in a `u16`), return `Err(PortError::Invalid)`; if the number is 0, return `Err(PortError::Zero)`; otherwise return `Ok(port)`. Example: `" 80 "` → `Ok(80)`. Hint: `is_empty()` works on a `&str` too. You can't pass on the error from `parse` with `?` here, because its type isn't `PortError`; turn it into `PortError::Invalid` with a `match`, as in the example.'''
+starter = '''
+use std::error::Error;
+use std::fmt;
+
+#[derive(Debug, PartialEq)]
+enum PortError {
+    Empty,
+    Invalid,
+    Zero,
+}
+
+impl fmt::Display for PortError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        todo!()
+    }
+}
+
+impl Error for PortError {}
+
+fn parse_port(s: &str) -> Result<u16, PortError> {
+    todo!()
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn valid_ports() {
+        assert_eq!(parse_port("8080"), Ok(8080));
+        assert_eq!(parse_port(" 80 "), Ok(80));
+    }
+    #[test]
+    fn errors() {
+        assert_eq!(parse_port("   "), Err(PortError::Empty));
+        assert_eq!(parse_port("abc"), Err(PortError::Invalid));
+        assert_eq!(parse_port("70000"), Err(PortError::Invalid));
+        assert_eq!(parse_port("0"), Err(PortError::Zero));
+    }
+    #[test]
+    fn messages() {
+        assert_eq!(PortError::Empty.to_string(), "empty input");
+        assert_eq!(PortError::Invalid.to_string(), "invalid number");
+        assert_eq!(PortError::Zero.to_string(), "port cannot be zero");
+    }
+    #[test]
+    fn dyn_error() {
+        let e: Box<dyn Error> = Box::new(PortError::Zero);
+        assert_eq!(e.to_string(), "port cannot be zero");
+    }
+}
+'''
+solution = '''
+use std::error::Error;
+use std::fmt;
+
+#[derive(Debug, PartialEq)]
+enum PortError {
+    Empty,
+    Invalid,
+    Zero,
+}
+
+impl fmt::Display for PortError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            PortError::Empty => write!(f, "empty input"),
+            PortError::Invalid => write!(f, "invalid number"),
+            PortError::Zero => write!(f, "port cannot be zero"),
+        }
+    }
+}
+
+impl Error for PortError {}
+
+fn parse_port(s: &str) -> Result<u16, PortError> {
+    let t = s.trim();
+    if t.is_empty() {
+        return Err(PortError::Empty);
+    }
+    let port: u16 = match t.parse() {
+        Ok(p) => p,
+        Err(_) => return Err(PortError::Invalid),
+    };
+    if port == 0 {
+        return Err(PortError::Zero);
+    }
+    Ok(port)
+}
+'''

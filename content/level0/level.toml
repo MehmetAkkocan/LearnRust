@@ -1,0 +1,42 @@
+id = 0
+slug = "ornek"
+title = "Örnek Seviye"
+description = "Şemayı gösteren fixture seviyesi; gerçek içerik değildir."
+
+[[quiz.mcq]]
+id = "0-m1"
+q = "Rust'ta değişkenler varsayılan olarak nasıldır?"
+choices = ["Değiştirilebilir", "Değiştirilemez", "Global", "Gizli"]
+answer = 1
+
+[[quiz.mcq]]
+id = "0-m2"
+q = "Yeni bir proje hangi komutla oluşturulur?"
+choices = ["cargo new", "rustc new", "cargo make", "rust init"]
+answer = 0
+points = 10
+
+[[quiz.coding]]
+id = "0-q1"
+prompt = "`double(x: i32) -> i32` fonksiyonunu yazın; girdinin iki katını döndürsün."
+starter = '''
+fn double(x: i32) -> i32 {
+    todo!()
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn iki_kati() {
+        assert_eq!(double(4), 8);
+        assert_eq!(double(-3), -6);
+    }
+}
+'''
+solution = '''
+fn double(x: i32) -> i32 {
+    x * 2
+}
+'''

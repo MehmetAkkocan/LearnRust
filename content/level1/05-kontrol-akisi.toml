@@ -1,0 +1,106 @@
+id = "1-05"
+title = "Koşullar ve Döngüler"
+read_points = 10
+body_md = '''
+## Neden
+
+Bir program iki şeyi sürekli yapar: duruma göre karar verir ve aynı işi
+tekrarlar. Karar için `if`, tekrar için döngü kullanırsın. Başka bir dil
+biliyorsan çoğu tanıdık gelecek. Bir fark var: Rust'ta `if` bir ifadedir,
+yani değer üretir. Sonucunu doğrudan bir değişkene koyabilirsin; önce boş bir
+değişken açıp sonra içini doldurman gerekmez.
+
+## Nasıl
+
+`if`'ten sonra bir koşul gelir. Koşulun tipi `bool` olmak zorundadır;
+çevresine parantez gerekmez:
+
+```rust
+let n = 7;
+let kind = if n % 2 == 0 { "çift" } else { "tek" };
+```
+
+`%` bölmeden kalanı verir; `n % 2 == 0` "n ikiye tam bölünüyor mu" diye sorar.
+İkiden çok durum varsa araya `else if` eklersin:
+`if n < 0 { "negatif" } else if n == 0 { "sıfır" } else { "pozitif" }`.
+Koşullar yukarıdan aşağı denenir; yalnızca ilk tutan dal çalışır.
+
+Üç çeşit döngü var:
+
+```rust
+// loop: sen break diyene kadar döner; break bir değer de verebilir
+let mut c = 0;
+let found = loop {
+    c += 1;
+    if c == 5 { break c * 2; }
+};                                 // found = 10
+
+// while: koşul doğru olduğu sürece döner
+let mut k = 3;
+while k > 0 { k -= 1; }
+
+// for: bir aralığın ya da dizinin elemanlarını sırayla gezer
+for i in 0..3 { /* i: 0, 1, 2 */ }
+for i in 1..=3 { /* i: 1, 2, 3 */ }
+```
+
+`a..b` aralığına `b` dahil değildir, `a..=b` aralığına dahildir. `break`
+döngüden çıkar. `continue` o turun kalanını atlayıp sıradaki tura geçer.
+Elemanları sırayla gezeceksen `for` kullan: sayacı elle artırmadığın için
+artırmayı unutmak ya da sınırı aşmak gibi hatalar yapamazsın.
+
+## Dikkat
+
+- `n` bir tam sayıysa `if n { ... }` derlenmez. Rust sayıyı kendiliğinden
+  `bool` yapmaz; ne sorduğunu açıkça yaz: `if n != 0 { ... }`.
+- `if`'in değerini kullanıyorsan `else` zorunludur ve bütün dallar aynı tipte
+  değer vermelidir. Bir dal sayı, öteki metin veremez.
+- `0..3` içinde 3 yoktur. 3'ü de istiyorsan `0..=3` yaz.
+- `while` döngüsünde sayacı değiştirmeyi unutursan koşul hep doğru kalır ve
+  program döngüden hiç çıkamaz.
+'''
+example = '''
+fn main() {
+    let mut total = 0;
+    for i in 1..=5 {
+        if i % 2 == 1 {
+            continue;
+        }
+        total += i;
+    }
+    println!("Çift sayıların toplamı: {}", total);
+}
+'''
+
+[exercise]
+prompt = "`sum_even(limit: u32) -> u32` fonksiyonunu yaz. 1'den `limit`'e kadar olan çift sayıları topla ve toplamı döndür; `limit` de dahil. Örnek: `sum_even(10)` → 2 + 4 + 6 + 8 + 10 = 30. Arada hiç çift sayı yoksa (`limit` 0 ya da 1 ise) sonuç 0'dır. Bir `for` döngüsü kullan."
+starter = '''
+fn sum_even(limit: u32) -> u32 {
+    todo!()
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn cift_toplam() {
+        assert_eq!(sum_even(10), 30);
+        assert_eq!(sum_even(0), 0);
+        assert_eq!(sum_even(1), 0);
+        assert_eq!(sum_even(7), 12);
+    }
+}
+'''
+solution = '''
+fn sum_even(limit: u32) -> u32 {
+    let mut total = 0;
+    for i in 1..=limit {
+        if i % 2 == 0 {
+            total += i;
+        }
+    }
+    total
+}
+'''
+points = 30

@@ -1,0 +1,199 @@
+id = "7-07"
+title = "Mimari: dyn Trait mi, Generic mi?"
+read_points = 10
+body_md = '''
+## Neden
+
+Bir davranışı trait ile tarif ettin; diyelim `Pricing`, fiyat hesaplıyor. Onu kullanan kodu yazarken bir seçim yapman gerekir: generic mi (`S: Pricing`), trait object mi (`dyn Pricing`)? İkisi de "`Pricing` olan her şeyle çalışırım" der. Ama bedelleri farklıdır, izin verdikleri şeyler de. Hangisini neden seçtiğini bilirsen kodun ileride rahat büyür.
+
+## Nasıl
+
+**Generic: static dispatch.** Hangi metodun çağrılacağı derleme zamanında bellidir. Derleyici, kullandığın her somut tip için fonksiyonun ayrı bir kopyasını üretir (monomorphization). Çağrı doğrudan yapılır, derleyici onu inline bile edebilir; en hızlı yol budur. Bedeli: program dosyası büyür, derleme uzar.
+
+```rust
+fn run<S: Pricing>(s: &S, base: u32) -> u32 { s.price(base) }
+```
+
+**dyn Trait: dynamic dispatch.** Hangi metodun çağrılacağı çalışma zamanında, vtable denen bir adres tablosuna bakılarak bulunur. Her çağrının küçük bir ek maliyeti vardır ve değerler çoğunlukla `Box` içinde, heap'te durur. Karşılığında farklı tipleri aynı listeye koyabilir, hangi tipin kullanılacağına program çalışırken karar verebilirsin.
+
+```rust
+let list: Vec<Box<dyn Pricing>> = vec![Box::new(Flat(10)), Box::new(Percent(50))];
+```
+
+Kaba bir kural:
+
+- Çok sık çalışan kod, tip baştan belli: generic.
+- Farklı tiplerden oluşan liste, sonradan takılan eklentiler, ayara göre seçilen davranış: `dyn`.
+- İkisi birlikte de olur: `impl<T: Pricing + ?Sized> Pricing for Box<T>` yazarsan `Box<dyn Pricing>` generic fonksiyonlara da verilebilir.
+
+Mimarinin geri kalanında da aynı tartıyı kullan. Modülde yalnızca dışarının gerçekten ihtiyaç duyduğu şeyleri `pub` yap. Hata tipinde, kütüphane yazıyorsan `enum` kullan ki çağıran `match` edebilsin; uygulamanın en üst katmanında `Box<dyn Error>` yeter.
+
+## Dikkat
+
+- Her yere `dyn` koyarsan sık çalışan kod boşuna yavaşlar. Her yere generic koyarsan program şişer, imzalar okunmaz olur.
+- Her trait `dyn` ile kullanılamaz: generic metodu ya da `Self` döndüren metodu olan trait'ler buna uymaz. Derleyici bunu "not dyn compatible" (eski adıyla "not object safe") diye bildirir.
+- Önce okunaklı olanı seç. Ölçüp yavaş olduğunu görürsen değiştirirsin.
+- Bir şeyi `pub` yaptıktan sonra geri almak, onu kullanan herkesin kodunu kırar.
+'''
+example = '''
+trait Pricing {
+    fn price(&self, base: u32) -> u32;
+}
+
+struct Flat(u32);
+struct Percent(u32);
+
+impl Pricing for Flat {
+    fn price(&self, base: u32) -> u32 {
+        base.saturating_sub(self.0)
+    }
+}
+
+impl Pricing for Percent {
+    fn price(&self, base: u32) -> u32 {
+        base - base * self.0 / 100
+    }
+}
+
+impl<T: Pricing + ?Sized> Pricing for Box<T> {
+    fn price(&self, base: u32) -> u32 {
+        (**self).price(base)
+    }
+}
+
+// Static dispatch: tip derleme zamanında belli, çağrı inline edilebilir.
+fn run_generic<S: Pricing>(s: &S, base: u32) -> u32 {
+    s.price(base)
+}
+
+// Dynamic dispatch: farklı tipler aynı listede durur.
+fn run_all(list: &[Box<dyn Pricing>], base: u32) -> Vec<u32> {
+    list.iter().map(|s| s.price(base)).collect()
+}
+
+fn main() {
+    println!("{}", run_generic(&Flat(30), 100));
+    let list: Vec<Box<dyn Pricing>> = vec![Box::new(Flat(10)), Box::new(Percent(50))];
+    println!("{:?}", run_all(&list, 100));
+    println!("{}", run_generic(&list[1], 100));
+}
+'''
+
+[exercise]
+prompt = "İndirim hesaplayan iki strateji ve onları kullanan üç fonksiyon yaz. `Flat(n).price(base)` fiyattan `n` düşer ama sıfırın altına inmez: `Flat(30)` ile `100` → `70`, `Flat(200)` ile `100` → `0`. İpucu: `base.saturating_sub(n)` çıkarma yapar, sonuç sıfırın altına düşecekse `0` verir. `Percent(p).price(base)` yüzde `p` indirim yapar: `base - base * p / 100`; `Percent(25)` ile `100` → `75`. `apply_all` listedeki her stratejiyi aynı `base`'e ayrı ayrı uygular ve sonuçları sırayla bir `Vec` içinde döndürür. `apply_generic` tek bir stratejiyi `base`'e uygular. `apply_chain` stratejileri zincirler: ilkini `base`'e, her sonrakini bir öncekinin sonucuna uygular; liste boşsa `base`'i döndürür. Örnek: `[Flat(20), Percent(50)]` ve `100` için `apply_all` → `[80, 50]`, `apply_chain` → `40`. `Box<T>` için `impl` başlangıç kodunda hazır; ona dokunma."
+starter = '''
+pub trait Pricing {
+    fn price(&self, base: u32) -> u32;
+}
+
+pub struct Flat(pub u32);
+pub struct Percent(pub u32);
+
+impl Pricing for Flat {
+    fn price(&self, base: u32) -> u32 {
+        todo!()
+    }
+}
+
+impl Pricing for Percent {
+    fn price(&self, base: u32) -> u32 {
+        todo!()
+    }
+}
+
+impl<T: Pricing + ?Sized> Pricing for Box<T> {
+    fn price(&self, base: u32) -> u32 {
+        (**self).price(base)
+    }
+}
+
+pub fn apply_all(list: &[Box<dyn Pricing>], base: u32) -> Vec<u32> {
+    todo!()
+}
+
+pub fn apply_generic<S: Pricing>(s: &S, base: u32) -> u32 {
+    todo!()
+}
+
+pub fn apply_chain(list: &[Box<dyn Pricing>], base: u32) -> u32 {
+    todo!()
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn strategies_directly() {
+        assert_eq!(Flat(30).price(100), 70);
+        assert_eq!(Flat(200).price(100), 0);
+        assert_eq!(Percent(25).price(100), 75);
+    }
+
+    #[test]
+    fn generic_path() {
+        assert_eq!(apply_generic(&Flat(5), 20), 15);
+        assert_eq!(apply_generic(&Percent(10), 200), 180);
+        let boxed: Box<dyn Pricing> = Box::new(Percent(50));
+        assert_eq!(apply_generic(&boxed, 10), 5);
+    }
+
+    #[test]
+    fn dyn_path() {
+        let list: Vec<Box<dyn Pricing>> = vec![Box::new(Flat(10)), Box::new(Percent(50))];
+        assert_eq!(apply_all(&list, 100), vec![90, 50]);
+        let empty: Vec<Box<dyn Pricing>> = Vec::new();
+        assert_eq!(apply_all(&empty, 100), Vec::<u32>::new());
+    }
+
+    #[test]
+    fn chain_applies_in_order() {
+        let list: Vec<Box<dyn Pricing>> = vec![Box::new(Flat(20)), Box::new(Percent(50))];
+        assert_eq!(apply_chain(&list, 100), 40);
+        let reversed: Vec<Box<dyn Pricing>> = vec![Box::new(Percent(50)), Box::new(Flat(20))];
+        assert_eq!(apply_chain(&reversed, 100), 30);
+        let empty: Vec<Box<dyn Pricing>> = Vec::new();
+        assert_eq!(apply_chain(&empty, 77), 77);
+    }
+}
+'''
+solution = '''
+pub trait Pricing {
+    fn price(&self, base: u32) -> u32;
+}
+
+pub struct Flat(pub u32);
+pub struct Percent(pub u32);
+
+impl Pricing for Flat {
+    fn price(&self, base: u32) -> u32 {
+        base.saturating_sub(self.0)
+    }
+}
+
+impl Pricing for Percent {
+    fn price(&self, base: u32) -> u32 {
+        base - base * self.0 / 100
+    }
+}
+
+impl<T: Pricing + ?Sized> Pricing for Box<T> {
+    fn price(&self, base: u32) -> u32 {
+        (**self).price(base)
+    }
+}
+
+pub fn apply_all(list: &[Box<dyn Pricing>], base: u32) -> Vec<u32> {
+    list.iter().map(|s| s.price(base)).collect()
+}
+
+pub fn apply_generic<S: Pricing>(s: &S, base: u32) -> u32 {
+    s.price(base)
+}
+
+pub fn apply_chain(list: &[Box<dyn Pricing>], base: u32) -> u32 {
+    list.iter().fold(base, |acc, s| s.price(acc))
+}
+'''
+points = 30

@@ -1,0 +1,113 @@
+title = "if let and while let: When Only One Case Matters"
+body_md = '''
+## Why
+
+Sometimes only one case of an `Option` matters to you: if there is a value you
+do something, and if there isn't you do nothing. Write that with `match` and
+you're forced to add an empty arm:
+
+```rust
+match maybe {
+    Some(n) => println!("{}", n),
+    None => {}
+}
+```
+
+With `if let` you write the same thing in less space. `while let` is the same
+idea as a loop: it keeps going as long as the pattern matches.
+
+## How
+
+Read `if let pattern = expression { ... }` as: "if the expression matches this
+pattern, run the block". You can add an `else` to handle the case where it
+doesn't match.
+
+```rust
+let name: Option<String> = Some(String::from("Alice"));
+if let Some(n) = &name {
+    println!("hello {}", n);
+} else {
+    println!("no name");
+}
+```
+
+`n` exists only inside that block. The same syntax works with your own enums:
+`if let Command::Write(s) = &c { ... }`.
+
+`while let` evaluates the expression again on every pass; if the pattern
+matches it runs the body, and if not it leaves the loop.
+
+```rust
+let mut stack = vec![1, 2, 3];
+while let Some(top) = stack.pop() {
+    println!("{}", top); // 3, 2, 1
+}
+```
+
+There are two new things here. A `Vec<i32>` is a list that can grow and
+shrink, and you create one with `vec![1, 2, 3]`; you'll see the details in
+Level 4. In this lesson you only need `pop()`: it removes the last element of
+the list and gives it to you as `Some(element)`, or returns `None` if the list
+is empty. The list gets one element shorter on every pass, so eventually
+`None` arrives and the loop ends on its own.
+
+## Watch out
+
+- `if let` doesn't check whether you handled the other cases; forget one and
+  the code still compiles. If every case matters, use `match`.
+- There is a single `=` between the pattern and the expression. It isn't a
+  comparison (`==`); it fits the value to the pattern.
+- In a `while let`, if the expression gives the same result on every pass, the
+  loop never ends. There's no such danger here, because `pop()` shortens the
+  list.
+- If you write `if let Some(n) = name`, the `String` inside moves into `n` and
+  `name` can no longer be used. If you need `name` afterwards, write `&name`
+  to borrow it.
+'''
+example = '''
+fn main() {
+    let maybe: Option<i32> = Some(7);
+    if let Some(n) = maybe {
+        println!("value: {}", n);
+    } else {
+        println!("no value");
+    }
+
+    let mut stack = vec![1, 2, 3];
+    let mut total = 0;
+    // pop() starts from the end: first 3, then 2, then 1
+    while let Some(top) = stack.pop() {
+        println!("popped: {}", top);
+        total += top;
+    }
+    println!("total: {}", total);
+}
+'''
+
+[exercise]
+prompt = "Write three functions. `describe_opt(o)` returns the text `val:<number>` if there is a value and `none` if there isn't; e.g. `Some(5)` -> \"val:5\", `None` -> \"none\". `sum_stack(v)` adds up the numbers in the list by taking them out one at a time with `while let` and `pop()`; e.g. `vec![1, 2, 3, 4]` -> 10, an empty list -> 0. The parameter is declared as `mut v` because `pop()` changes the list. `count_some(v)` returns how many `Some` values the slice holds; e.g. `[Some(1), None, Some(3)]` -> 2. Hint: `for item in v` walks the slice; for each `item` you can check whether there is a value with `if let Some(_) = item`."
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn describes() {
+        assert_eq!(describe_opt(Some(5)), "val:5");
+        assert_eq!(describe_opt(None), "none");
+    }
+
+    #[test]
+    fn stack_sum() {
+        assert_eq!(sum_stack(vec![1, 2, 3, 4]), 10);
+        assert_eq!(sum_stack(vec![]), 0);
+    }
+
+    #[test]
+    fn counts_some() {
+        assert_eq!(count_some(&[Some(1), None, Some(3)]), 2);
+        assert_eq!(count_some(&[None, None]), 0);
+        assert_eq!(count_some(&[]), 0);
+    }
+}
+'''

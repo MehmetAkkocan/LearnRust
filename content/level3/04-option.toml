@@ -1,0 +1,150 @@
+id = "3-04"
+title = "Option: Değer Olabilir de Olmayabilir de"
+read_points = 10
+body_md = '''
+## Neden
+
+Bir listede bir sayı arıyorsun. Bulursan sırasını döndüreceksin; peki
+bulamazsan? Birçok dilde bu durumda `null` döner. Sorun şu: `null` gelip
+gelmediğine bakmayı unutursan program çalışırken çöker ve derleyici seni
+önceden uyarmaz. Rust'ta `null` yoktur. "Değer olmayabilir" bilgisini tipin
+kendisi taşır: `Option<T>`. Bu, standart kütüphanede hazır gelen iki
+variant'lı bir enum'dur: değer varsa `Some(değer)`, yoksa `None`. İçindeki
+değeri kullanmak için önce "var mı?" diye bakmak zorundasın; bakmazsan kod
+derlenmez.
+
+## Nasıl
+
+```rust
+fn find_index(v: &[i32], target: i32) -> Option<usize> {
+    for (i, x) in v.iter().enumerate() {
+        if *x == target {
+            return Some(i);
+        }
+    }
+    None
+}
+```
+
+`v.iter().enumerate()` elemanları sıra numarasıyla birlikte verir: `i` sıra
+numarası, `x` elemana referanstır. Sayı bulunursa `Some(i)` döner; döngü bitip
+de bulunamadıysa `None`.
+
+Dönen `Option` ile şunları yapabilirsin (`r` sonucu tutan değişken olsun):
+
+- `match` ile iki durumu ayrı ayrı yaz:
+  `match r { Some(i) => ..., None => ... }`. `Some(i)` deseni içerideki değeri
+  `i` adıyla sana verir.
+- `r.unwrap_or(0)`: değer varsa onu, yoksa verdiğin varsayılanı alırsın.
+- `r.map(|x| x * 2)`: değer varsa onu dönüştürür, `None` ise `None` bırakır.
+  `|x| x * 2` yerinde yazılmış küçük bir fonksiyondur (closure); ayrıntısı
+  Seviye 5'te.
+- `r.is_some()` ve `r.is_none()`: yalnızca var mı yok mu diye bakar, `bool`
+  döndürür.
+
+Standart kütüphane de sık sık `Option` döndürür. Bir slice'ta `v.first()` ilk
+elemanı, `v.get(i)` `i` numaralı elemanı verir; öyle bir eleman yoksa ikisi de
+`None` döndürür.
+
+## Dikkat
+
+- `unwrap()` değeri doğrudan çıkarır, ama değer `None` ise program panic ile
+  durur. Denemelerde iş görür; asıl kodda `match` ya da `unwrap_or` kullan.
+- `Option<i32>` ile `i32` ayrı tiplerdir. `Some(5) + 1` derlenmez; önce
+  içindeki değeri çıkarman gerekir.
+- Fonksiyonun `Option<i32>` döndürüyorsa düz `5` döndüremezsin, `Some(5)`
+  yazmalısın. Yoksa derleyici `` expected `Option<i32>`, found integer `` der.
+- `Some` ve `None` her yerde hazırdır; `Option::Some` diye uzun yazmana gerek
+  yok.
+'''
+example = '''
+fn find_index(v: &[i32], target: i32) -> Option<usize> {
+    for (i, x) in v.iter().enumerate() {
+        if *x == target {
+            return Some(i);
+        }
+    }
+    None
+}
+
+fn main() {
+    let data = [10, 20, 30];
+    match find_index(&data, 20) {
+        Some(i) => println!("bulundu, sırası: {}", i),
+        None => println!("yok"),
+    }
+    // 99 listede yok; None yerine 0 alırız
+    let missing = find_index(&data, 99).unwrap_or(0);
+    println!("bulunamayınca varsayılan: {}", missing);
+    let doubled = Some(21).map(|x| x * 2);
+    println!("{:?}", doubled);
+    println!("{:?}", data.first());
+}
+'''
+
+[exercise]
+prompt = "Üç fonksiyon yaz. `safe_div(a, b)`: `b` sıfırsa `None`, değilse `Some(a / b)` döndürür; örn. `safe_div(10, 2)` -> `Some(5)`, `safe_div(7, 0)` -> `None`. `first_even(v)`: slice'taki ilk çift sayıyı `Some` içinde döndürür, hiç çift sayı yoksa `None` döndürür; örn. `[1, 3, 4, 6]` -> `Some(4)`. `double_opt(o)`: değer varsa iki katını `Some` içinde döndürür, `None` ise `None` döndürür; örn. `Some(4)` -> `Some(8)`. İpucu: `for x in v` slice'ı baştan sona dolaşır; `x` bir `&i32` olur, sayının kendisi için `*x` yaz."
+starter = '''
+fn safe_div(a: i32, b: i32) -> Option<i32> {
+    todo!()
+}
+
+fn first_even(v: &[i32]) -> Option<i32> {
+    todo!()
+}
+
+fn double_opt(o: Option<i32>) -> Option<i32> {
+    todo!()
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bolme() {
+        assert_eq!(safe_div(10, 2), Some(5));
+        assert_eq!(safe_div(7, 0), None);
+    }
+
+    #[test]
+    fn ilk_cift() {
+        assert_eq!(first_even(&[1, 3, 4, 6]), Some(4));
+        assert_eq!(first_even(&[1, 3, 5]), None);
+        assert_eq!(first_even(&[]), None);
+    }
+
+    #[test]
+    fn iki_kat() {
+        assert_eq!(double_opt(Some(4)), Some(8));
+        assert_eq!(double_opt(None), None);
+    }
+}
+'''
+solution = '''
+fn safe_div(a: i32, b: i32) -> Option<i32> {
+    if b == 0 {
+        None
+    } else {
+        Some(a / b)
+    }
+}
+
+fn first_even(v: &[i32]) -> Option<i32> {
+    for x in v {
+        if x % 2 == 0 {
+            return Some(*x);
+        }
+    }
+    None
+}
+
+fn double_opt(o: Option<i32>) -> Option<i32> {
+    match o {
+        Some(x) => Some(x * 2),
+        None => None,
+    }
+}
+'''
+points = 30

@@ -1,0 +1,88 @@
+title = "Organizing Modules and pub(crate)"
+body_md = '''
+## Why
+
+In a small program all the functions can sit side by side in one file. As
+the program grows, that list becomes impossible to manage: which function
+belongs to what, and which ones may be touched from outside? Modules let
+you do two things. You gather related code in one place. And you decide
+what is open to the outside and what is an internal detail. If you keep
+an internal detail hidden, changing it later does not break code
+elsewhere.
+
+## How
+
+`mod` opens a module. Modules can be nested:
+
+```rust
+mod shop {
+    pub mod price {
+        pub fn with_tax(cents: u32) -> u32 {
+            cents + cents / 5
+        }
+        pub(crate) fn helper() {}
+        fn secret() {}
+    }
+}
+```
+
+You reach an item through its path: `shop::price::with_tax(100)`. If the
+path is long, write `use shop::price::with_tax;` once and then just say
+`with_tax(100)`.
+
+The word in front of an item decides who may use it:
+
+- If you write nothing, the item is private: only the module it is
+  defined in and that module's submodules can use it.
+- `pub`: it can be used from outside the module too. But you must also be
+  able to reach the modules on the path that leads to it.
+- `pub(crate)`: it can be used anywhere in the same crate, but not from
+  other crates. A crate is the whole unit that is compiled in one go:
+  your program, or a library.
+- `pub(super)`: it can be used only inside the parent module.
+
+In real projects modules live in separate files: you write `mod price;`
+and the contents of the module go into `price.rs`. The rules are the
+same.
+
+The `use super::*;` in a test module is a path too: `super` means the
+parent module.
+
+## Watch out
+
+If you call a private function from outside, the compiler prints this,
+even when the module it sits in is `pub`:
+
+```text
+error[E0603]: function `secret` is private
+```
+
+- Making a struct `pub` does not open its fields; you write `pub` again
+  on every field that should be usable from outside.
+- Enums are different: if the enum is `pub`, all of its variants are open
+  too.
+- Do not write `pub` on everything. Start private, and open things up
+  when you really need to. Closing something you opened earlier breaks
+  the code that uses it.
+'''
+
+[exercise]
+prompt = "Write the bodies of the three functions in the `bank` module. `account::fee(amount)` returns the transaction fee: 1 percent of the amount, that is, `amount / 100`. Because this function is `pub(super)`, it can only be called from inside the `bank` module. `account::can_afford(balance, amount)` (`pub(crate)`) returns `true` if the balance covers both the amount and the fee: `balance >= amount + fee(amount)`. `withdraw(balance, amount)` returns the remaining balance as `Some(balance - amount - fee)` if there is enough money, and `None` if there is not. Example: `withdraw(1000, 500)` → `Some(495)`, `withdraw(100, 100)` → `None`. Hint: from inside `withdraw` you reach the other two through the paths `account::can_afford(...)` and `account::fee(...)`."
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn can_afford_checks() {
+        assert!(bank::account::can_afford(1000, 500));
+        assert!(!bank::account::can_afford(500, 500));
+        assert!(bank::account::can_afford(101, 100));
+    }
+    #[test]
+    fn withdrawals() {
+        assert_eq!(bank::withdraw(1000, 500), Some(495));
+        assert_eq!(bank::withdraw(100, 100), None);
+        assert_eq!(bank::withdraw(101, 100), Some(0));
+    }
+}
+'''

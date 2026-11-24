@@ -1,0 +1,98 @@
+title = "Vec: A List That Grows"
+body_md = '''
+## Why
+
+Most programs deal with many values, not just one: exam scores, order
+lines, sensor readings. And you usually can't tell up front how many there
+will be. That's what `Vec<T>` is for: a list whose elements all have the
+same type and that can grow as much as you need. The elements live on the
+heap. When the owner of the `Vec` goes out of scope, the list is dropped
+together with its elements.
+
+## How
+
+Write `Vec::new()` for an empty list and `vec![...]` for a list that
+already has values in it. If you're going to add or remove elements, the
+variable has to be `mut`.
+
+```rust
+let mut nums = vec![1, 2, 3];
+nums.push(4);                 // adds to the end
+let first = nums[0];          // 1; panics if there is no such index
+let maybe = nums.get(10);     // Option<&i32>; None here
+for n in nums.iter() {
+    println!("{}", n);        // n: &i32, read only
+}
+for n in nums.iter_mut() {
+    *n *= 2;                  // n: &mut i32, changes the element in place
+}
+```
+
+- `len()` gives you the number of elements, `is_empty()` tells you whether
+  the list is empty.
+- `pop()` removes the last element and hands it to you in an `Option`; on
+  an empty list you get `None`.
+- `iter()` gives you references to the elements, not the elements
+  themselves. When you need the number itself, put a `*` in front:
+  `total += *n;`
+- `for n in &nums` is the same as `for n in nums.iter()`; it leaves the
+  list alone. `for n in nums` moves the list into the loop.
+- In a function that only reads the list, make the parameter `&[T]` (a
+  slice). Then you can pass it a `Vec` or an array: `sum(&nums)`,
+  `sum(&[1, 2, 3])`.
+
+## Watch out
+
+- `nums[i]` stops the program with a panic when the index doesn't exist.
+  If the index comes from outside (a user, a file), use `get` and handle
+  the `None` case.
+- You can't call `push` while you're holding a reference to an element.
+  If you write `let first = &nums[0];`, then `nums.push(5);`, and then use
+  `first`, the compiler says `cannot borrow nums as mutable because it is
+  also borrowed as immutable`. Here's why: when it runs out of room, `push`
+  moves all the elements to a different place in memory, and `first` would
+  then point at a spot that is no longer valid.
+- After a `for n in nums` loop you can't use `nums` any more, because the
+  list was moved into the loop. If you still need the list afterwards, loop
+  over `&nums`.
+'''
+example = '''
+fn main() {
+    let mut scores = vec![70, 85, 90];
+    scores.push(60);
+
+    let mut total = 0;
+    for s in scores.iter() {
+        total += *s;
+    }
+    println!("Total: {}, count: {}", total, scores.len());
+
+    match scores.get(10) {
+        Some(v) => println!("Found: {}", v),
+        None => println!("No element at index 10"),
+    }
+
+    for s in scores.iter_mut() {
+        *s += 5;
+    }
+    println!("{:?}", scores);
+}
+'''
+
+[exercise]
+prompt = "Write `sum_even(v: &[i32]) -> i32`: it returns the sum of the even numbers in the slice. Example: `[1, 2, 3, 4, 5, 6]` → `12`. If the slice is empty or has no even numbers, return `0`. Negative even numbers count too: `[-2, -3, 7]` → `-2`. Hint: `x` is even when `x % 2 == 0`."
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn sums_even_numbers() {
+        assert_eq!(sum_even(&[1, 2, 3, 4, 5, 6]), 12);
+    }
+    #[test]
+    fn empty_and_negative() {
+        assert_eq!(sum_even(&[]), 0);
+        assert_eq!(sum_even(&[-2, -3, 7]), -2);
+    }
+}
+'''

@@ -1,0 +1,142 @@
+title = "impl: Methods and Associated Functions"
+body_md = '''
+## Why
+
+Think of a bank account. The balance is data; depositing and withdrawing are
+things you do with that data. You could write those as free-standing
+functions, but then whoever reads the code has to hunt for which function
+belongs to which type. An `impl` block keeps the functions for a type right
+next to that type. Calling them reads more naturally too:
+`account.deposit(50)` instead of `deposit(&mut account, 50)`.
+
+## How
+
+You write the functions inside an `impl TypeName { ... }` block.
+
+```rust
+struct Rect { w: u32, h: u32 }
+
+impl Rect {
+    fn new(w: u32, h: u32) -> Self {
+        Rect { w, h }
+    }
+    fn area(&self) -> u32 {
+        self.w * self.h
+    }
+    fn grow(&mut self, k: u32) {
+        self.w *= k;
+        self.h *= k;
+    }
+}
+
+let mut r = Rect::new(2, 3);
+r.grow(2);
+println!("{}", r.area()); // 24
+```
+
+A function whose first parameter is `self` is called a method, and you call it
+with a dot: `r.area()`. `self` is the value you called the method on. It comes
+in three forms:
+
+- `&self`: only reads the value. After the call, `r` is just as it was.
+- `&mut self`: changes the value. For this, `r` must be declared with
+  `let mut`.
+- `self`: takes the value for itself (a move). After the call you can't use
+  `r` any more.
+
+`new`, on the other hand, takes no `self`. Functions like that are called
+associated functions: they belong to the type itself, not to a particular
+value, and you call them with `::`, as in `Rect::new(2, 3)`. Their most common
+job is to create a new value. `new` isn't a special word, just a convention
+everyone follows. `Self` (capital S) is short for the type the `impl` block
+belongs to; here it means `Rect`.
+
+## Watch out
+
+- If reading is enough, write `&self`; if you need to change the value, write
+  `&mut self`. Choose plain `self` only when you don't want the value to be
+  used after the call.
+- Calling a `&mut self` method on a value declared with `let r = ...` doesn't
+  compile:
+  `` cannot borrow `r` as mutable, as it is not declared as mutable ``.
+  The fix: `let mut r`.
+- You can write more than one `impl` block for a type, but two functions can't
+  have the same name.
+- A field and a method can share a name. `a.balance` reads the field,
+  `a.balance()` calls the method; the parentheses make the difference.
+'''
+example = '''
+#[derive(Debug)]
+struct Rect {
+    w: u32,
+    h: u32,
+}
+
+impl Rect {
+    fn new(w: u32, h: u32) -> Self {
+        Rect { w, h }
+    }
+
+    fn square(side: u32) -> Self {
+        Rect { w: side, h: side }
+    }
+
+    fn area(&self) -> u32 {
+        self.w * self.h
+    }
+
+    fn can_hold(&self, other: &Rect) -> bool {
+        self.w >= other.w && self.h >= other.h
+    }
+
+    fn grow(&mut self, k: u32) {
+        self.w *= k;
+        self.h *= k;
+    }
+}
+
+fn main() {
+    let mut r = Rect::new(2, 3);
+    let s = Rect::square(2);
+    println!("area: {}", r.area());
+    println!("can hold it: {}", r.can_hold(&s));
+    r.grow(2);
+    println!("{:?}", r);
+}
+'''
+
+[exercise]
+prompt = "Write four functions for `Account`. `new(initial)` returns an account whose balance is `initial`. `deposit(amount)` adds `amount` to the balance. `withdraw(amount)` subtracts `amount` and returns `true` if the balance is large enough; otherwise it leaves the balance alone and returns `false`. `balance()` returns the current balance. E.g. withdrawing 30 from an account opened with 100 returns `true` and leaves 70; trying to withdraw 200 from that same account returns `false` and the balance doesn't change."
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn starts_with_initial() {
+        let a = Account::new(100);
+        assert_eq!(a.balance(), 100);
+    }
+
+    #[test]
+    fn deposit_adds() {
+        let mut a = Account::new(100);
+        a.deposit(50);
+        assert_eq!(a.balance(), 150);
+    }
+
+    #[test]
+    fn withdraw_ok() {
+        let mut a = Account::new(100);
+        assert!(a.withdraw(30));
+        assert_eq!(a.balance(), 70);
+    }
+
+    #[test]
+    fn withdraw_insufficient() {
+        let mut a = Account::new(100);
+        assert!(!a.withdraw(200));
+        assert_eq!(a.balance(), 100);
+    }
+}
+'''

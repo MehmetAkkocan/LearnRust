@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="quiz">
+  <p class="crumbs"><a href="/">{{ t.nav_home }}</a> &rsaquo; <a href="/seviye/{{ slug }}">{{ level_title }}</a></p>
+  <h1>{{ level_title }} · {{ t.quiz_heading }}</h1>
+  {% if !mcqs.is_empty() %}
+  <h2>{{ t.mcq_heading }}</h2>
+  <form class="quiz-mcq" hx-post="/seviye/{{ slug }}/test/mcq" hx-target="#mcq-result" hx-swap="innerHTML" hx-disabled-elt="find button" hx-sync="this:drop">
+    {% for m in mcqs %}
+    <fieldset class="question {{ m.status }}">
+      <legend>{{ loop.index }}. {{ m.q_html|safe }} <span class="muted">({{ m.points }} {{ t.points_word }})</span></legend>
+      {% for c in m.choices %}
+      <label class="choice"><input type="radio" name="q_{{ m.id }}" value="{{ c.idx }}"> {{ c.html|safe }}</label>
+      {% endfor %}
+    </fieldset>
+    {% endfor %}
+    <button type="submit" class="button">{{ t.submit_answers }}</button>
+  </form>
+  <div id="mcq-result" class="mcq-result"></div>
+  {% endif %}
+
+  {% if !codings.is_empty() %}
+  <h2>{{ t.coding_heading }}</h2>
+  {% for c in codings %}
+  <section class="exercise coding-question">
+    <h3>{{ t.question }} {{ loop.index }}{% if c.done %} <span class="badge">{{ t.done }}</span>{% endif %} <span class="muted">({{ c.points }} {{ t.points_word }})</span></h3>
+    <div class="exercise-prompt">{{ c.prompt_html|safe }}</div>
+    <form hx-post="/seviye/{{ slug }}/test/kod/{{ c.id }}" hx-target="#kod-result-{{ c.id }}" hx-swap="innerHTML" hx-indicator="#kod-spinner-{{ c.id }}" hx-disabled-elt="find button" hx-sync="this:drop">
+      <textarea name="code" rows="16" spellcheck="false" autocomplete="off" class="code-input">{{ c.starter }}</textarea>
+      <button type="submit" class="button">{{ t.run_btn }}</button>
+      <span id="kod-spinner-{{ c.id }}" class="htmx-indicator">{{ t.running }}</span>
+    </form>
+    <div id="kod-result-{{ c.id }}" class="run-result"></div>
+  </section>
+  {% endfor %}
+  {% endif %}
+</section>
+{% endblock %}

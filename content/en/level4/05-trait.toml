@@ -1,0 +1,123 @@
+title = "Traits: Shared Behavior"
+body_md = '''
+## Why
+
+Different types can do the same job: a circle has an area and so does a
+square; you can read data from a file and from a network connection. When
+you want to say "anything that has an area", you write a trait. A trait is
+a list of methods: it says "a type that implements this trait has these
+methods". That lets you write a single function that works with circles
+and squares alike. `Display` and `Error` from the previous lesson were
+traits too.
+
+## How
+
+Inside the trait you write the method signatures. Then, for each type, you
+fill in the bodies in an `impl Trait for Type` block.
+
+```rust
+trait Area {
+    fn area(&self) -> f64;
+
+    // default method: the body is ready; a type may write its own version
+    fn is_large(&self) -> bool {
+        self.area() > 100.0
+    }
+}
+
+struct Circle { r: f64 }
+struct Square { side: f64 }
+
+impl Area for Circle {
+    fn area(&self) -> f64 { 3.14 * self.r * self.r }
+}
+impl Area for Square {
+    fn area(&self) -> f64 { self.side * self.side }
+}
+```
+
+- `area` has no body; every type has to write it.
+- The body of `is_large` is inside the trait. `Circle` and `Square` use it
+  without writing it at all: `Square { side: 12.0 }.is_large()` gives
+  `true`. Because it calls `self.area()`, each type answers based on its
+  own area.
+- When a function should take "any type that implements `Area`", make the
+  parameter `&impl Area`: `fn describe(shape: &impl Area) -> String`. You
+  can pass this function a `&Circle` or a `&Square`.
+- `Debug`, `Clone`, `PartialEq` and `Display` are traits from the standard
+  library. When you write `#[derive(Debug, Clone, PartialEq)]`, the
+  compiler generates the `impl` blocks for you. `Display` can't be
+  derived; you write that one by hand.
+
+## Watch out
+
+- If you forget one of the body-less methods in the `impl` block, the code
+  doesn't compile: `not all trait items implemented, missing: area`.
+- If the trait lives in another module, you have to bring it in with `use`
+  before you can call its methods. Even when you have the type, the
+  compiler can't find the method if the trait isn't in scope.
+- Orphan rule: to implement a trait for a type, at least one of the two
+  must be defined in your own crate. You can implement your own trait for
+  `Vec<i32>`, and you can implement `Display` for your own struct. But you
+  can't implement `Display` for `Vec<i32>`, because both belong to the
+  standard library.
+'''
+example = '''
+trait Area {
+    fn area(&self) -> f64;
+
+    fn is_large(&self) -> bool {
+        self.area() > 100.0
+    }
+}
+
+struct Circle {
+    r: f64,
+}
+
+struct Square {
+    side: f64,
+}
+
+impl Area for Circle {
+    fn area(&self) -> f64 {
+        3.14 * self.r * self.r
+    }
+}
+
+impl Area for Square {
+    fn area(&self) -> f64 {
+        self.side * self.side
+    }
+}
+
+fn describe(shape: &impl Area) -> String {
+    format!("area = {:.1}, large = {}", shape.area(), shape.is_large())
+}
+
+fn main() {
+    let c = Circle { r: 2.0 };
+    let s = Square { side: 12.0 };
+    println!("Circle: {}", describe(&c));
+    println!("Square: {}", describe(&s));
+}
+'''
+
+[exercise]
+prompt = "The `Area` trait and the `Rect` struct are ready. Write the `area` method for `Rect`: it returns the width times the height (`w * h`). You don't need to write `is_large`; the default method in the trait already gives `true` when the area is greater than 100. Example: `Rect { w: 3.0, h: 4.0 }.area()` → `12.0`."
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn computes_area() {
+        let r = Rect { w: 3.0, h: 4.0 };
+        assert_eq!(r.area(), 12.0);
+    }
+    #[test]
+    fn large_or_not() {
+        assert!(!Rect { w: 3.0, h: 4.0 }.is_large());
+        assert!(Rect { w: 20.0, h: 10.0 }.is_large());
+    }
+}
+'''

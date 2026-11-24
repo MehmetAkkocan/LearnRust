@@ -1,0 +1,76 @@
+title = "Basic Types"
+body_md = '''
+## Why
+
+Every value in Rust has a type, and the compiler knows that type before the
+program runs. If you pass text where a number is expected, or mix two
+different number types, the code does not compile; you see the mistake while
+you write, not while the program runs. You usually don't write the type
+yourself: the compiler works it out from the value. You still need to know
+which types exist and how to get from one to another.
+
+## How
+
+Types that hold a single value:
+
+- Signed integers (can be negative): `i8`, `i16`, `i32`, `i64`, `i128`, `isize`
+- Unsigned integers (cannot be negative): `u8`, `u16`, `u32`, `u64`, `u128`, `usize`
+- Numbers with a fractional part: `f32`, `f64`
+- True or false: `bool` (`true` / `false`)
+- A single character: `char`; written in single quotes (`'a'`, `'é'`)
+
+The number in the name tells you how many bits the value takes up: a `u8`
+holds 0 to 255. `usize` is used for lengths and positions. If you don't write
+a type, a whole number becomes `i32` and a number with a decimal point becomes
+`f64`.
+
+Two types hold several values. A tuple keeps values of different types side
+by side; you reach them with `.0`, `.1`. An array holds a fixed number of
+elements of the same type:
+
+```rust
+let point: (i32, f64) = (3, 2.5);
+let first = point.0;      // 3
+let days = [1, 2, 3];
+let n = days.len();       // 3
+```
+
+To write the type yourself, put `:` after the variable's name, as `point`
+does above.
+
+You convert a value to another type with `as`. Rust won't do it for you:
+
+```rust
+let a: u32 = 7;
+let b = a as f64 / 2.0; // 3.5
+```
+
+## Watch out
+
+- You can't mix an integer and a floating-point number in one operation.
+  With the `a` above, `a / 2.0` does not compile; write `a as f64 / 2.0`.
+- Dividing two integers throws away the fraction: `7 / 2` is `3`, not `3.5`.
+- Every type has a largest value it can hold. Add 1 to a `u8` variable that
+  holds 255 and it overflows. In a debug build the program stops with a
+  panic: it prints an error message and exits. In a `--release` build the
+  value silently goes back to 0. If a value won't fit, pick a wider type.
+- `as` can lose information. Convert an `i32` variable that holds 300 with
+  `as u8` and you get `44`, because 300 doesn't fit in a `u8`. Converting a
+  floating-point number to an integer drops the fraction: `3.9 as i32` is `3`.
+'''
+
+[exercise]
+prompt = "Write the function `percent(part: u32, total: u32) -> f64`. Return what percentage of `total` the value `part` is, as a floating-point number. Example: `percent(1, 4)` → 25.0. `total` is never zero. Hint: convert the numbers with `as f64` before you divide; otherwise integer division throws away the fraction."
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn computes_percent() {
+        assert_eq!(percent(1, 4), 25.0);
+        assert_eq!(percent(1, 2), 50.0);
+        assert_eq!(percent(0, 8), 0.0);
+        assert_eq!(percent(5, 5), 100.0);
+    }
+}
+'''

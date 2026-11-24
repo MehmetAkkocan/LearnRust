@@ -1,0 +1,215 @@
+id = "4-04"
+title = "Kendi Hata Tipini Yazmak"
+read_points = 10
+body_md = '''
+## Neden
+
+`ParseIntError` sana yalnızca "metin sayıya çevrilemedi" der. Senin
+programının hataları ise kendi işine özgüdür: "port boş bırakılmış", "yaş
+negatif", "kullanıcı bulunamadı". Bunları düz bir `String` mesajı olarak
+döndürürsen, seni çağıran kod hangi hatanın çıktığını anlamak için metin
+karşılaştırmak zorunda kalır. Hataları bir `enum` olarak yazarsan her hata
+türü bir varyant olur; çağıran da `match` ile hangisi olduğuna bakıp ona
+göre davranır.
+
+## Nasıl
+
+Üç adım var: hataları bir enum'da topla, `Display` ile her birinin
+mesajını yaz, `Error` trait'ini ekle.
+
+```rust
+use std::error::Error;
+use std::fmt;
+
+#[derive(Debug, PartialEq)]
+enum AgeError {
+    Negative,
+    TooHigh(u32),
+}
+
+impl fmt::Display for AgeError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            AgeError::Negative => write!(f, "yaş negatif olamaz"),
+            AgeError::TooHigh(n) => write!(f, "{} çok büyük", n),
+        }
+    }
+}
+
+impl Error for AgeError {}
+```
+
+`Display` ve `Error` birer trait'tir. Trait'i bir sonraki derste
+anlatacağız; şimdilik "bir tipin yazması gereken metotların listesi" diye
+düşün.
+
+- `Display`, tipin `{}` ile nasıl yazdırılacağını belirler ve elle
+  yazılır. `write!(f, "...")` tıpkı `println!` gibi çalışır, ama ekrana
+  değil `f`'ye yazar. `Display` yazınca `to_string()` metodu da hazır gelir.
+- `Debug` (`{:?}` çıktısı) `derive` ile gelir.
+- `impl Error for AgeError {}` bloğunun içi boş kalabilir. Ama tipte hem
+  `Debug` hem `Display` olmak zorunda; biri eksikse kod derlenmez.
+- `PartialEq` türetirsen hataları `==` ile karşılaştırabilirsin. Testte
+  `assert_eq!(f(x), Err(AgeError::Negative))` yazabilmek için bu gerekir.
+
+Artık fonksiyonun `Result<u32, AgeError>` döndürebilir; hata vermek için
+`return Err(AgeError::Negative);` yazarsın.
+
+Farklı tipte hataları aynı fonksiyondan döndürmek istersen dönüş tipini
+`Result<T, Box<dyn Error>>` yap. `Box<dyn Error>`, "`Error` trait'ini
+uygulayan herhangi bir hata" demektir; böyle bir fonksiyonda `?`, hatayı
+kendiliğinden bu tipe çevirir. `Box` ve `dyn` konusuna bu seviyenin son
+dersinde döneceğiz.
+
+## Dikkat
+
+- `Display` mesajını kısa tut, küçük harfle başlat, sonuna nokta koyma;
+  böylece başka bir mesajın içine eklendiğinde de düzgün durur. `Display`
+  kullanıcıya gösterilen mesajdır, `Debug` geliştiricinin göreceği çıktı.
+- Varyantın içine veri koyabilirsin (`TooHigh(u32)`); hata böylece ayrıntı
+  da taşır. `PartialEq` türetebilmek için içteki tiplerin de `==` ile
+  karşılaştırılabilir olması gerekir.
+- Hatayı `Box<dyn Error>` olarak döndürürsen çağıran, hangi varyantın
+  geldiğini artık `match` ile kolayca ayıramaz. Çağıranın hataya göre karar
+  vermesi gerekiyorsa kendi enum'unu döndür.
+'''
+example = '''
+use std::error::Error;
+use std::fmt;
+
+#[derive(Debug, PartialEq)]
+enum AgeError {
+    NotNumber,
+    Negative,
+}
+
+impl fmt::Display for AgeError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            AgeError::NotNumber => write!(f, "sayı değil"),
+            AgeError::Negative => write!(f, "yaş negatif olamaz"),
+        }
+    }
+}
+
+impl Error for AgeError {}
+
+fn parse_age(s: &str) -> Result<u32, AgeError> {
+    let n: i64 = match s.trim().parse() {
+        Ok(n) => n,
+        Err(_) => return Err(AgeError::NotNumber),
+    };
+    if n < 0 {
+        return Err(AgeError::Negative);
+    }
+    Ok(n as u32)
+}
+
+fn run() -> Result<(), Box<dyn Error>> {
+    let age = parse_age("30")?;
+    println!("Yaş: {}", age);
+    let bad = parse_age("-5")?;
+    println!("Buraya gelinmez: {}", bad);
+    Ok(())
+}
+
+fn main() {
+    if let Err(e) = run() {
+        println!("Hata: {}", e);
+    }
+}
+'''
+
+[exercise]
+prompt = '''`PortError` enum'u hazır; iki şey yaz. (1) `Display`: `Empty` için `"boş girdi"`, `Invalid` için `"geçersiz sayı"`, `Zero` için `"port sıfır olamaz"` yazsın. (2) `parse_port(s: &str) -> Result<u16, PortError>`: önce baştaki ve sondaki boşlukları at. Geriye hiçbir şey kalmadıysa `Err(PortError::Empty)`; kalan metin `u16`'ya çevrilemiyorsa (`"abc"` ya da `u16`'ya sığmayan `"70000"`) `Err(PortError::Invalid)`; sayı 0 ise `Err(PortError::Zero)`; bunların hiçbiri değilse `Ok(port)` döndür. Örnek: `" 80 "` → `Ok(80)`. İpucu: `is_empty()` `&str` üzerinde de çalışır. `parse`'ın hatasını burada `?` ile iletemezsin, çünkü tipi `PortError` değil; örnekteki gibi `match` ile `PortError::Invalid`'e çevir.'''
+starter = '''
+use std::error::Error;
+use std::fmt;
+
+#[derive(Debug, PartialEq)]
+enum PortError {
+    Empty,
+    Invalid,
+    Zero,
+}
+
+impl fmt::Display for PortError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        todo!()
+    }
+}
+
+impl Error for PortError {}
+
+fn parse_port(s: &str) -> Result<u16, PortError> {
+    todo!()
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn gecerli() {
+        assert_eq!(parse_port("8080"), Ok(8080));
+        assert_eq!(parse_port(" 80 "), Ok(80));
+    }
+    #[test]
+    fn hatalar() {
+        assert_eq!(parse_port("   "), Err(PortError::Empty));
+        assert_eq!(parse_port("abc"), Err(PortError::Invalid));
+        assert_eq!(parse_port("70000"), Err(PortError::Invalid));
+        assert_eq!(parse_port("0"), Err(PortError::Zero));
+    }
+    #[test]
+    fn mesajlar() {
+        assert_eq!(PortError::Empty.to_string(), "boş girdi");
+        assert_eq!(PortError::Invalid.to_string(), "geçersiz sayı");
+        assert_eq!(PortError::Zero.to_string(), "port sıfır olamaz");
+    }
+    #[test]
+    fn dyn_error() {
+        let e: Box<dyn Error> = Box::new(PortError::Zero);
+        assert_eq!(e.to_string(), "port sıfır olamaz");
+    }
+}
+'''
+solution = '''
+use std::error::Error;
+use std::fmt;
+
+#[derive(Debug, PartialEq)]
+enum PortError {
+    Empty,
+    Invalid,
+    Zero,
+}
+
+impl fmt::Display for PortError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            PortError::Empty => write!(f, "boş girdi"),
+            PortError::Invalid => write!(f, "geçersiz sayı"),
+            PortError::Zero => write!(f, "port sıfır olamaz"),
+        }
+    }
+}
+
+impl Error for PortError {}
+
+fn parse_port(s: &str) -> Result<u16, PortError> {
+    let t = s.trim();
+    if t.is_empty() {
+        return Err(PortError::Empty);
+    }
+    let port: u16 = match t.parse() {
+        Ok(p) => p,
+        Err(_) => return Err(PortError::Invalid),
+    };
+    if port == 0 {
+        return Err(PortError::Zero);
+    }
+    Ok(port)
+}
+'''
+points = 30

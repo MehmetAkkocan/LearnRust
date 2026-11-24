@@ -1,0 +1,69 @@
+title = "Beyond the Basics"
+description = "Lifetimes, closures, iterator adaptors, writing your own iterator, Box, testing and documenting with cargo, organizing modules."
+
+[[quiz.mcq]]
+id = "5-m1"
+q = "What does the `'a` you write in a function signature do?"
+choices = ["It makes the reference stay valid for longer", "It tells the compiler how long the references stay valid relative to each other", "It moves the value to the heap", "It checks the reference at run time"]
+
+[[quiz.mcq]]
+id = "5-m2"
+q = "A closure consumes the `String` it captured inside its body (it moves it somewhere else). Which of these does the closure implement?"
+choices = ["Fn", "FnMut", "Copy", "FnOnce"]
+
+[[quiz.mcq]]
+id = "5-m3"
+q = "What happens if you write the line `v.iter().map(|x| x * 2);` on its own?"
+choices = ["Nothing runs; adaptors are lazy and need a consumer such as `collect`", "The items of `v` are doubled in place", "A new `Vec` is created", "The code does not compile"]
+
+[[quiz.mcq]]
+id = "5-m4"
+q = "When you write `Box::new(5)`, where does the value `5` live?"
+choices = ["On the stack", "In the program's static memory", "On the heap; only its address is on the stack", "In a CPU register"]
+
+[[quiz.mcq]]
+id = "5-m5"
+q = "Who can use a function you marked `pub(crate)`?"
+choices = ["Everyone, including other crates", "All code inside the same crate", "Only the module it is defined in", "Only the test module"]
+
+[[quiz.coding]]
+id = "5-q1"
+prompt = "`compose(f, g)` takes two closures and returns a new closure. The new closure applies `f` first and then applies `g` to that result; that is, giving `x` to the closure you get from `compose(f, g)` returns `g(f(x))`. Example: if `f` adds one (`|x| x + 1`) and `g` multiplies by ten (`|x| x * 10`), the result gives `30` for `2`. Hint: write `move` to move `f` and `g` into the closure you return."
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn applies_in_order() {
+        let h = compose(Box::new(|x| x + 1), Box::new(|x| x * 10));
+        assert_eq!(h(2), 30);
+        assert_eq!(h(-1), 0);
+    }
+    #[test]
+    fn captured_value() {
+        let n = 5;
+        let h = compose(Box::new(move |x| x + n), Box::new(move |x| x - n));
+        assert_eq!(h(7), 7);
+    }
+}
+'''
+
+[[quiz.coding]]
+id = "5-q2"
+prompt = "Finish the `Iterator` trait for `Fib`. Each call to `next` gives the next number of the Fibonacci sequence: 0, 1, 1, 2, 3, 5, 8, ... (after the first two, every number is the sum of the two before it). The sequence is infinite: `next` never returns `None`, it always returns `Some`. Of the fields, `a` holds the next number and `b` the one after it."
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn first_eight() {
+        let v: Vec<u64> = Fib::new().take(8).collect();
+        assert_eq!(v, vec![0, 1, 1, 2, 3, 5, 8, 13]);
+    }
+    #[test]
+    fn with_adaptors() {
+        let total: u64 = Fib::new().take(10).filter(|x| x % 2 == 0).sum();
+        assert_eq!(total, 44);
+    }
+}
+'''

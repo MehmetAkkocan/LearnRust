@@ -1,0 +1,153 @@
+id = "3-06"
+title = "if let ve while let: Tek Durumla İlgilenmek"
+read_points = 10
+body_md = '''
+## Neden
+
+Bazen bir `Option`'ın yalnızca tek durumu seni ilgilendirir: değer varsa bir
+şey yapacaksın, yoksa hiçbir şey. Bunu `match` ile yazınca boş bir kol eklemek
+zorunda kalırsın:
+
+```rust
+match maybe {
+    Some(n) => println!("{}", n),
+    None => {}
+}
+```
+
+`if let` ile aynı işi daha kısa yazarsın. `while let` de aynı fikrin döngü
+hali: desen uyduğu sürece döner.
+
+## Nasıl
+
+`if let desen = ifade { ... }` şöyle okunur: "ifade bu desene uyuyorsa bloğu
+çalıştır". İstersen `else` ekleyip uymadığı durumu da yazarsın.
+
+```rust
+let name: Option<String> = Some(String::from("Ayşe"));
+if let Some(n) = &name {
+    println!("merhaba {}", n);
+} else {
+    println!("isim yok");
+}
+```
+
+`n` yalnızca o bloğun içinde vardır. Aynı yazım kendi enum'larında da çalışır:
+`if let Command::Write(s) = &c { ... }`.
+
+`while let` her turda ifadeyi yeniden hesaplar; desen uyarsa gövdeyi
+çalıştırır, uymazsa döngüden çıkar.
+
+```rust
+let mut stack = vec![1, 2, 3];
+while let Some(top) = stack.pop() {
+    println!("{}", top); // 3, 2, 1
+}
+```
+
+Burada iki yeni şey var. `Vec<i32>`, büyüyüp küçülebilen bir listedir ve
+`vec![1, 2, 3]` ile oluşturulur; ayrıntısını Seviye 4'te göreceksin. Bu derste
+yalnızca `pop()` lazım: listenin son elemanını çıkarıp `Some(eleman)` olarak
+verir, liste boşsa `None` döndürür. Liste her turda bir eleman kısaldığı için
+sonunda `None` gelir ve döngü kendiliğinden biter.
+
+## Dikkat
+
+- `if let`, öteki durumları da yazıp yazmadığına bakmaz; birini unutsan da
+  kod derlenir. Bütün durumlar önemliyse `match` kullan.
+- Desenle ifadenin arasında tek `=` var. Bu bir karşılaştırma (`==`) değil,
+  değeri desene uydurmadır.
+- `while let`'te ifade her turda aynı sonucu veriyorsa döngü hiç bitmez.
+  `pop()` listeyi kısalttığı için burada böyle bir tehlike yok.
+- `if let Some(n) = name` yazarsan içerideki `String`, `n`'ye taşınır (move)
+  ve `name` artık kullanılamaz. `name` sana sonra da lazımsa `&name` yazıp
+  ödünç al (borrow).
+'''
+example = '''
+fn main() {
+    let maybe: Option<i32> = Some(7);
+    if let Some(n) = maybe {
+        println!("değer: {}", n);
+    } else {
+        println!("değer yok");
+    }
+
+    let mut stack = vec![1, 2, 3];
+    let mut total = 0;
+    // pop() sondan başlar: önce 3, sonra 2, sonra 1 gelir
+    while let Some(top) = stack.pop() {
+        println!("çıkarıldı: {}", top);
+        total += top;
+    }
+    println!("toplam: {}", total);
+}
+'''
+
+[exercise]
+prompt = "Üç fonksiyon yaz. `describe_opt(o)`: değer varsa `val:<sayı>`, yoksa `none` metnini döndürür; örn. `Some(5)` -> \"val:5\", `None` -> \"none\". `sum_stack(v)`: listedeki sayıları `while let` ve `pop()` ile tek tek çıkarıp toplar; örn. `vec![1, 2, 3, 4]` -> 10, boş liste -> 0. Parametre `mut v` diye verildi, çünkü `pop()` listeyi değiştirir. `count_some(v)`: slice'ta kaç tane `Some` olduğunu döndürür; örn. `[Some(1), None, Some(3)]` -> 2. İpucu: `for item in v` slice'ı dolaşır; her `item` için `if let Some(_) = item` ile değer var mı diye bakabilirsin."
+starter = '''
+fn describe_opt(o: Option<i32>) -> String {
+    todo!()
+}
+
+fn sum_stack(mut v: Vec<i32>) -> i32 {
+    todo!()
+}
+
+fn count_some(v: &[Option<i32>]) -> usize {
+    todo!()
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn aciklama() {
+        assert_eq!(describe_opt(Some(5)), "val:5");
+        assert_eq!(describe_opt(None), "none");
+    }
+
+    #[test]
+    fn yigin_toplami() {
+        assert_eq!(sum_stack(vec![1, 2, 3, 4]), 10);
+        assert_eq!(sum_stack(vec![]), 0);
+    }
+
+    #[test]
+    fn some_say() {
+        assert_eq!(count_some(&[Some(1), None, Some(3)]), 2);
+        assert_eq!(count_some(&[None, None]), 0);
+        assert_eq!(count_some(&[]), 0);
+    }
+}
+'''
+solution = '''
+fn describe_opt(o: Option<i32>) -> String {
+    if let Some(n) = o {
+        format!("val:{}", n)
+    } else {
+        "none".to_string()
+    }
+}
+
+fn sum_stack(mut v: Vec<i32>) -> i32 {
+    let mut total = 0;
+    while let Some(x) = v.pop() {
+        total += x;
+    }
+    total
+}
+
+fn count_some(v: &[Option<i32>]) -> usize {
+    let mut n = 0;
+    for item in v {
+        if let Some(_) = item {
+            n += 1;
+        }
+    }
+    n
+}
+'''
+points = 30

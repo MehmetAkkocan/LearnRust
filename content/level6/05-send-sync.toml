@@ -1,0 +1,129 @@
+id = "6-05"
+title = "Send ve Sync: Derleyici Thread Güvenliğini Nereden Bilir"
+read_points = 10
+body_md = '''
+## Neden
+
+Önceki derslerde bir şey dikkatini çekmiş olabilir: `Rc`'yi başka bir
+thread'e veremiyorsun, `Arc`'ı verebiliyorsun. Derleyici bu farkı
+nereden biliyor? İki trait'ten: `Send` ve `Sync`.
+
+Bunlara marker trait denir. İçlerinde hiç metot yoktur; tipin üstüne
+yapıştırılmış bir etiket gibidirler. Etiket derleyiciye "bu tip
+thread'ler arasında şöyle kullanılabilir" der. Rust'ın data race'i
+derleme zamanında yakalaması bu iki etikete dayanır.
+
+## Nasıl
+
+- `T: Send`: `T` tipindeki bir değer başka bir thread'e taşınabilir
+  (move).
+- `T: Sync`: aynı değere birkaç thread aynı anda `&T` referansıyla
+  bakabilir. Başka bir deyişle, `&T` `Send` ise `T` `Sync`'tir.
+
+`thread::spawn` bu trait bound'ları ister:
+
+```rust
+pub fn spawn<F, T>(f: F) -> JoinHandle<T>
+where
+    F: FnOnce() -> T + Send + 'static,
+    T: Send + 'static,
+```
+
+Yani hem closure (içine aldığı her şeyle birlikte) hem de döndürdüğü
+değer `Send` olmalı.
+
+- Çoğu tip kendiliğinden `Send + Sync`'tir: sayılar, `String`,
+  elemanları öyleyse `Vec<T>`.
+- `Rc<T>` ikisi de değildir; sayacını iki thread aynı anda değiştirirse
+  bozulur.
+- `RefCell<T>` başka bir thread'e taşınabilir (`T: Send` ise `Send`'dir)
+  ama `Sync` değildir; borrow denetimini tek thread'e göre yapar.
+- `Mutex<T>`, `T: Send` ise `Sync`'tir. `Arc<Mutex<T>>`'yi thread'ler
+  arasında paylaşabilmen bundandır.
+- Kendi yazdığın struct ya da enum, bütün alanları `Send`/`Sync` ise
+  kendiliğinden öyle olur; senin bir şey yazman gerekmez.
+
+## Dikkat
+
+- Closure'ın içinde bir `Rc` kullanıp onu `spawn`'a verirsen şu hatayı
+  alırsın: "`Rc<i32>` cannot be sent between threads safely". Yani bu
+  `Rc` thread'ler arasında güvenle gönderilemez. Çözüm `Rc` yerine `Arc`
+  kullanmak.
+- `unsafe impl Send for X {}` yazarak etiketi elle de yapıştırabilirsin.
+  O zaman güvenliğin sorumluluğu derleyiciden sana geçer; yanılırsan
+  programın ne yapacağı belli olmaz (undefined behavior). Neredeyse hiç
+  gerekmez.
+- `Send` ve `Sync` hiçbir şeyi lock'lamaz, korumaz; yalnızca neye izin
+  olduğunu söyler. Ortak veriyi değiştirmek için yine `Mutex` gibi bir
+  araç gerekir.
+'''
+example = '''
+use std::cell::RefCell;
+use std::rc::Rc;
+use std::sync::{Arc, Mutex};
+
+fn is_send<T: Send>() {}
+fn is_sync<T: Sync>() {}
+
+fn main() {
+    // Bu satırlar derlenir: tipler istenen trait'i taşıyor.
+    is_send::<Vec<i32>>();
+    is_sync::<Mutex<i32>>();
+    is_send::<Arc<Mutex<i32>>>();
+    is_send::<RefCell<i32>>();
+
+    // Aşağıdaki iki satırın başındaki // işaretini kaldırırsan kod derlenmez:
+    // is_send::<Rc<i32>>();
+    // is_sync::<RefCell<i32>>();
+    let _unused: Option<Rc<i32>> = None;
+
+    println!("Send/Sync kontrolleri derleme zamanında geçti.");
+}
+'''
+
+[exercise]
+prompt = "`with_thread(value, f)` bir değer ve bir closure alır. İkisini de yeni bir thread'e taşı, `f(value)` hesabını o thread'de yap, sonucu `join` ile alıp döndür. Örnek: `with_thread(String::from(\"rust\"), |s| s.to_uppercase())` → `\"RUST\"`. İmzadaki `Send + 'static` bound'larını değiştirme; onlar olmadan `thread::spawn` bu değerleri kabul etmez."
+starter = '''
+use std::thread;
+
+pub fn with_thread<T, F>(value: T, f: F) -> T
+where
+    T: Send + 'static,
+    F: FnOnce(T) -> T + Send + 'static,
+{
+    todo!()
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn vec_uzerinde() {
+        let out = with_thread(vec![1, 2, 3], |mut v| {
+            v.push(4);
+            v
+        });
+        assert_eq!(out, vec![1, 2, 3, 4]);
+    }
+
+    #[test]
+    fn string_uzerinde() {
+        let out = with_thread(String::from("rust"), |s| s.to_uppercase());
+        assert_eq!(out, "RUST");
+    }
+}
+'''
+solution = '''
+use std::thread;
+
+pub fn with_thread<T, F>(value: T, f: F) -> T
+where
+    T: Send + 'static,
+    F: FnOnce(T) -> T + Send + 'static,
+{
+    thread::spawn(move || f(value)).join().unwrap()
+}
+'''
+points = 30

@@ -1,0 +1,101 @@
+id = "1-04"
+title = "Fonksiyonlar"
+read_points = 10
+body_md = '''
+## Neden
+
+Fonksiyon, belli bir işi yapan kod parçasına ad vermektir. Aynı işi her
+gerektiğinde yeniden yazmazsın, adıyla çağırırsın; her parçayı da ayrı ayrı
+test edebilirsin. Rust'ta fonksiyonun ilk satırı ne aldığını ve ne
+döndürdüğünü tipleriyle söyler. Derleyici hem fonksiyonun içini hem de onu
+çağıran her yeri bu satıra göre denetler. Bu uygulamadaki egzersizlerde de
+ilk satırı hazır verilmiş bir fonksiyonun içini yazarsın.
+
+## Nasıl
+
+```rust
+fn add(a: i32, b: i32) -> i32 {
+    a + b
+}
+```
+
+- Tanım `fn` ile başlar, sonra fonksiyonun adı gelir.
+- Her parametrenin tipini yazmak zorundasın.
+- Döndürdüğü değerin tipi `->` işaretinden sonra yazılır. `->` yoksa
+  fonksiyon bir değer döndürmez; bu durumda dönüş tipi `()` olur.
+- Gövdedeki son satırın sonunda noktalı virgül yoksa, o satırın değeri
+  fonksiyonun döndürdüğü değerdir. Daha erken çıkmak istersen `return` yazarsın.
+
+Çağırmak için adını ve değerleri yazarsın: `let sum = add(2, 3);`
+
+Son satır kuralının arkasında şu ayrım var: ifade (expression) bir değer
+üretir, deyim (statement) bir iş yapar ama değer üretmez. `a + b` bir
+ifadedir, `let y = 6;` bir deyimdir. Süslü parantezli bir blok da ifadedir;
+değeri, içindeki son ifadenin değeridir:
+
+```rust
+let x = { let a = 1; a + 1 }; // x = 2
+```
+
+Birden çok değer döndürmek istersen tuple döndürürsün:
+
+```rust
+fn sum_and_diff(a: i32, b: i32) -> (i32, i32) {
+    (a + b, a - b)
+}
+```
+
+Dönen tuple'ı parçalayıp iki ayrı değişkene dağıtabilirsin:
+`let (s, d) = sum_and_diff(9, 2);` satırından sonra `s` 11, `d` 7 olur.
+
+## Dikkat
+
+- `fn five() -> i32 { 5; }` derlenmez. Noktalı virgül `5` ifadesini deyime
+  çevirir; döndürülecek değer kalmaz ve fonksiyon `()` döndürmüş olur.
+  Derleyici `mismatched types` der: `i32` bekliyordu, `()` buldu. Noktalı
+  virgülü silince düzelir.
+- Verdiğin değerin tipi parametrenin tipiyle aynı olmalıdır. `i32` bekleyen
+  bir fonksiyona `u32` veremezsin; önce `as i32` ile çevirirsin.
+- Aynı adla iki fonksiyon tanımlayamazsın. Bazı dillerde parametreleri farklı
+  olan fonksiyonlara aynı ad verilebilir (overloading); Rust'ta bu yoktur.
+'''
+example = '''
+fn square(x: i32) -> i32 {
+    x * x
+}
+
+fn divmod(a: i32, b: i32) -> (i32, i32) {
+    (a / b, a % b)
+}
+
+fn main() {
+    let (q, r) = divmod(17, 5);
+    println!("{} {} {}", square(4), q, r);
+}
+'''
+
+[exercise]
+prompt = "`divmod(a: i32, b: i32) -> (i32, i32)` fonksiyonunu yaz. `a`'yı `b`'ye böl; bölümü ve kalanı bu sırayla bir tuple içinde döndür. Örnek: `divmod(17, 5)` → `(3, 2)`. `b` hiçbir zaman sıfır gelmez. İpucu: tam sayılarda `/` bölümü, `%` kalanı verir."
+starter = '''
+fn divmod(a: i32, b: i32) -> (i32, i32) {
+    todo!()
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn bolum_ve_kalan() {
+        assert_eq!(divmod(17, 5), (3, 2));
+        assert_eq!(divmod(10, 2), (5, 0));
+        assert_eq!(divmod(3, 7), (0, 3));
+    }
+}
+'''
+solution = '''
+fn divmod(a: i32, b: i32) -> (i32, i32) {
+    (a / b, a % b)
+}
+'''
+points = 30

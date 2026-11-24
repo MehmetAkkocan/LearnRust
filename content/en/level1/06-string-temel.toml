@@ -1,0 +1,94 @@
+title = "String Basics"
+body_md = '''
+## Why
+
+Almost every program works with text: it prints a name, builds a message,
+reads input. Rust has two types for text, and at first it is confusing which
+one to use when. A `String` holds the text itself; you can add to the end of
+it and change it. A `&str` looks at text that lives somewhere else; you can
+read it but not change it. The `"hello"` you write in double quotes in your
+code is a `&str`. Both store text as UTF-8, so letters like `é` or `ş` work
+without trouble. Why there are two separate types is something you will see
+in the next level, under ownership and borrowing. Here it is enough to learn
+the everyday use.
+
+## How
+
+```rust
+let a = "fixed";                      // &str
+let mut s = String::from("Hello ");   // String
+s.push_str("world");                  // adds text to the end
+s.push('!');                          // adds one character to the end
+let n = s.len();                      // how many bytes it takes up
+let up = s.to_uppercase();            // a new String in capital letters
+let t = "  padded  ".trim();          // drops the spaces at both ends
+let has = s.contains("world");        // is it in there: true
+```
+
+`push_str` and `push` change the text itself. `to_uppercase` and `trim` leave
+the old text alone and give you the result as a new value.
+
+To join pieces into a new `String`, you use `format!`. Each `{}` is replaced
+by one value, in order:
+
+```rust
+let name = "Ali";
+let msg = format!("Hi {}!", name); // "Hi Ali!"
+```
+
+To make a `String` from a `&str`, write `String::from("x")` or
+`"x".to_string()`. If a function only needs to read the text, make its
+parameter a `&str`. You can pass such a function both a ready-made text like
+`"abc"` and a `String` (by putting `&` in front: `&s`).
+
+## Watch out
+
+- `len()` gives the number of bytes, not the number of letters. `"é".len()`
+  is 2, because `é` takes two bytes in UTF-8.
+- For `push_str` and `push` the variable must be `mut`. If you write
+  `let s = String::from("a");` and then try to add to it, the code does not
+  compile.
+- `String` and `&str` are separate types. If you write `"abc"` where a
+  `String` is expected, the compiler says `mismatched types`: it expected
+  `String` and found `&str`. You have to write `String::from("abc")`.
+- You can't write `s[0]` to get the first letter of the text; the code does
+  not compile. In UTF-8 a letter can take one byte or as many as four. That
+  is why Rust doesn't let you pick a letter out of text by its position.
+'''
+example = '''
+fn main() {
+    let mut s = String::from("Hello ");
+    s.push_str("Rust");
+    s.push('!');
+    println!("{} ({} bytes)", s, s.len());
+    println!("{}", s.to_uppercase());
+}
+'''
+
+[exercise]
+prompt = "Write the function `build_greeting(name: &str) -> String`. It takes a name and returns the text \"Hello <name>!\". Example: `build_greeting(\"Ali\")` → \"Hello Ali!\". Build the text step by step: start with `String::from`, add the name with `push_str` and the exclamation mark with `push`."
+starter = '''
+fn build_greeting(name: &str) -> String {
+    todo!()
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn greeting() {
+        assert_eq!(build_greeting("Ali"), "Hello Ali!");
+        assert_eq!(build_greeting("Zoë"), "Hello Zoë!");
+        assert_eq!(build_greeting(""), "Hello !");
+    }
+}
+'''
+solution = '''
+fn build_greeting(name: &str) -> String {
+    let mut s = String::from("Hello ");
+    s.push_str(name);
+    s.push('!');
+    s
+}
+'''

@@ -1,0 +1,103 @@
+id = "2-01"
+title = "Ownership ve Move"
+read_points = 10
+body_md = '''
+## Neden
+
+Bir program çalışırken bellekten yer alır; işi bitince o yeri geri vermesi
+gerekir. Bazı dillerde bunu arka planda çalışan bir garbage collector yapar,
+bazılarında programcı elle yapar ve unutunca hata çıkar. Rust başka bir yol
+seçer: her değerin tek bir sahibi vardır ve sahibin işi bitince değer
+kendiliğinden silinir. Bu kurallara ownership denir. Kuralları derleyici
+denetler; yani hata varsa program daha çalışmadan öğrenirsin. Silinmiş bir
+değeri kullanmak ("use after free") ya da aynı belleği iki kez geri vermek
+("double free") gibi hatalar böylece baştan engellenir.
+
+## Nasıl
+
+Üç kural var:
+
+1. Her değerin bir sahibi vardır. Sahip, o değeri tutan değişkendir.
+2. Bir değerin aynı anda tek bir sahibi olur.
+3. Sahip kapsamdan (scope) çıkınca, yani tanımlandığı `{ }` bloğu bitince,
+   değer silinir (drop) ve kapladığı bellek geri verilir.
+
+Bir `String`'in metni heap'te durur. Heap, boyutu ancak program çalışırken
+belli olan veriler için kullanılan bellek alanıdır. Bir `String`'i başka bir
+değişkene atadığında metin kopyalanmaz. Değer yeni değişkene taşınır (move),
+eski değişken de artık kullanılamaz:
+
+```rust
+let a = String::from("merhaba");
+let b = a; // değer a'dan b'ye taşındı
+// println!("{}", a); // HATA: a artık geçersiz
+println!("{}", b);
+```
+
+İkisi de geçerli kalsaydı, kapsam bitince aynı belleği ikisi birden geri
+vermeye çalışırdı. Move bunu önler.
+
+Fonksiyona değer vermek de bir move'dur. Fonksiyon değerin yeni sahibi olur
+ve fonksiyon bitince değer silinir. Değeri geri istiyorsan fonksiyonun onu
+döndürmesi gerekir; dönen değer bu kez çağıran tarafa taşınır.
+
+## Dikkat
+
+Taşınmış bir değişkeni kullanırsan derleyici şunu yazar:
+
+```
+error[E0382]: borrow of moved value: `a`
+```
+
+Anlamı: "`a`'daki değer başka bir yere taşındı, artık `a` üzerinden ona
+ulaşamazsın."
+
+- Gerçekten iki ayrı kopya istiyorsan `.clone()` çağır: `let b = a.clone();`.
+  Bu, heap'teki metni baştan sona kopyalar; büyük veride yavaştır. Hatayı
+  susturmak için değil, kopyaya ihtiyacın olduğunda kullan.
+- Move yalnızca `let b = a;` satırında olmaz. Fonksiyona değer verirken ve
+  fonksiyondan değer döndürürken de olur.
+'''
+example = '''
+fn tuket(s: String) -> usize {
+    println!("Tüketildi: {}", s);
+    s.len()
+}
+
+fn main() {
+    let a = String::from("merhaba");
+    let b = a;
+    println!("b = {}", b);
+    let n = tuket(b);
+    println!("uzunluk = {}", n);
+    // b artık kullanılamaz: değer tuket'e taşındı, fonksiyon bitince de silindi.
+}
+'''
+
+[exercise]
+prompt = '''`birlestir(a: String, b: String) -> String` fonksiyonunu yaz. Fonksiyon iki `String` alır (ikisi de fonksiyona taşınır) ve `a`'nın ardına `b`'yi ekleyip tek bir `String` olarak döndürür; sonucun sahibi artık çağıran taraftır. Örnek: `"ab"` ve `"cd"` → `"abcd"`. İpucu: `format!("{}{}", a, b)` iki metni art arda yazıp yeni bir `String` üretir.'''
+starter = '''
+fn birlestir(a: String, b: String) -> String {
+    todo!()
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn birlesir() {
+        let a = String::from("ab");
+        let b = String::from("cd");
+        let c = birlestir(a, b);
+        assert_eq!(c, "abcd");
+        assert_eq!(birlestir(String::new(), String::from("x")), "x");
+    }
+}
+'''
+solution = '''
+fn birlestir(a: String, b: String) -> String {
+    format!("{}{}", a, b)
+}
+'''
+points = 30

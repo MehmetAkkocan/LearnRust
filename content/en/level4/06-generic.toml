@@ -1,0 +1,138 @@
+title = "Generics and Trait Bounds"
+body_md = '''
+## Why
+
+You wrote `largest_i32`, a function that finds the largest number in a
+list. Then you needed the same thing for `f64`, then for `char`. All three
+bodies are the same; only the types differ. With generics you write the
+code once and put a type parameter such as `T` where the type would go.
+The compiler looks at which types you call the function with and
+generates a separate copy for each one (this is called monomorphization).
+So generic code runs as fast as separate functions written by hand.
+
+## How
+
+You write the type parameter in `<T>` after the function name. The
+compiler assumes nothing about `T`; if you want to compare `T` values with
+`>`, you have to say so. That is a trait bound: "`T` must be a type that
+implements these traits".
+
+```rust
+fn largest<T: PartialOrd + Copy>(items: &[T]) -> Option<T> {
+    if items.is_empty() {
+        return None;
+    }
+    let mut best = items[0];
+    for &x in items.iter() {
+        if x > best {
+            best = x;
+        }
+    }
+    Some(best)
+}
+```
+
+- `PartialOrd`: types that can be compared with `<` and `>`. This is what
+  makes `x > best` compile.
+- `Copy`: simple types that are copied when assigned (`i32`, `f64`,
+  `char`...). `let mut best = items[0];` can't take the element out of the
+  slice, it can only copy it; that's why the bound is needed. Writing
+  `for &x` also unwraps the reference and gives `x` a copy of the element.
+- You join several bounds with `+`.
+
+A struct can be generic too:
+
+```rust
+struct Pair<T> {
+    a: T,
+    b: T,
+}
+
+impl<T: PartialOrd + Copy> Pair<T> {
+    fn max(&self) -> T {
+        if self.a > self.b { self.a } else { self.b }
+    }
+}
+```
+
+`Pair { a: 1, b: 2 }` is a `Pair<i32>`, and `Pair { a: 1.5, b: 0.2 }` is a
+`Pair<f64>`. When the bounds get long you can move them to the end with
+`where`: `fn f<T>(x: T) where T: Display + Clone`. The `Vec<T>`,
+`Option<T>` and `Result<T, E>` you've been using are generic types as
+well.
+
+## Watch out
+
+- If you write `x > best` without a bound, the compiler says:
+  `binary operation > cannot be applied to type T`. In other words, "`T`
+  could be any type, and not every type can be compared". Below the
+  message it also suggests which bound to add.
+- Ask only for what you really use. Every extra bound shrinks the set of
+  types that can use the function. For example, this `largest` doesn't
+  work with a list of `String`s because it asks for `Copy`.
+- In an `impl` block you write `T` in two places: `impl<T> Pair<T>`. The
+  first one says "`T` is a type parameter", the second one uses it. If you
+  write just `impl Pair<T>`, the compiler looks for a type named `T` and
+  doesn't find one.
+'''
+example = '''
+use std::fmt::Display;
+
+fn largest<T: PartialOrd + Copy>(items: &[T]) -> Option<T> {
+    if items.is_empty() {
+        return None;
+    }
+    let mut best = items[0];
+    for &x in items.iter() {
+        if x > best {
+            best = x;
+        }
+    }
+    Some(best)
+}
+
+struct Pair<T> {
+    a: T,
+    b: T,
+}
+
+impl<T: PartialOrd + Copy + Display> Pair<T> {
+    fn show_max(&self) -> String {
+        let m = if self.a > self.b { self.a } else { self.b };
+        format!("the larger one: {}", m)
+    }
+}
+
+fn main() {
+    println!("{:?}", largest(&[3, 9, 4]));
+    println!("{:?}", largest(&[1.5, 0.2]));
+    println!("{:?}", largest::<char>(&[]));
+
+    let p = Pair { a: 10, b: 7 };
+    println!("{}", p.show_max());
+}
+'''
+
+[exercise]
+prompt = "Write `largest<T: PartialOrd + Copy>(items: &[T]) -> Option<T>`: it returns the largest element of the slice inside `Some`, or `None` if the slice is empty. The same function has to work with every comparable type. Example: `[3, 9, 4]` → `Some(9)`, `['a', 'z', 'm']` → `Some('z')`, empty slice → `None`."
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn integers() {
+        assert_eq!(largest(&[3, 9, 4]), Some(9));
+        assert_eq!(largest(&[-5, -2, -8]), Some(-2));
+    }
+    #[test]
+    fn floats_and_chars() {
+        assert_eq!(largest(&[1.5, 0.2, 1.7]), Some(1.7));
+        assert_eq!(largest(&['a', 'z', 'm']), Some('z'));
+    }
+    #[test]
+    fn empty_slice() {
+        let empty: [i32; 0] = [];
+        assert_eq!(largest(&empty), None);
+    }
+}
+'''

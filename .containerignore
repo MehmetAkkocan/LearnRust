@@ -1,0 +1,10 @@
+target/
+data/
+.git/
+.gitignore
+*.md
+!content/**/*.md
+run.ps1
+compose.yaml
+Containerfile
+.containerignore

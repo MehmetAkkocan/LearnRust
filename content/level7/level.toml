@@ -1,0 +1,155 @@
+id = 7
+slug = "senior"
+title = "Senior"
+description = "unsafe ve raw pointer, extern \"C\", macro_rules!, performans ve ölçüm, API tasarımı, derleyici hatalarını okumak, generic ile dyn arasında seçim."
+
+[[quiz.mcq]]
+id = "7-m1"
+q = "Bir `unsafe` blok ne yapar?"
+choices = [
+  "Borrow checker'ı tamamen kapatır",
+  "Raw pointer'ı dereference etmek gibi birkaç ek işleme izin verir; kodun doğru olduğundan artık sen sorumlusun",
+  "Kodu kendiliğinden hızlandırır",
+  "Blok içinde panic olmasını engeller",
+]
+answer = 1
+
+[[quiz.mcq]]
+id = "7-m2"
+q = "`macro_rules!` deseninde bir ifadeyi (örneğin `2 + 1`) yakalamak için hangisini yazarsın?"
+choices = ["$x:ident", "$x:ty", "$x:expr", "$x:lit_only"]
+answer = 2
+
+[[quiz.mcq]]
+id = "7-m3"
+q = "Bir `String`'i parça parça kuracaksın ve sonucun aşağı yukarı ne kadar uzun olacağını biliyorsun. Allocation sayısını azaltmak için ne yaparsın?"
+choices = [
+  "Her parçayı eklemeden önce `clone()` ederim",
+  "Her parça için yeni bir `String` üretirim",
+  "Sonucu `Box::new` ile sararım",
+  "Yeri `String::with_capacity` ile baştan ayırırım",
+]
+answer = 3
+
+[[quiz.mcq]]
+id = "7-m4"
+q = "`struct Port(u16);` gibi bir newtype'ın asıl faydası nedir?"
+choices = [
+  "Aynı tipte tutulan ama anlamı farklı değerleri ayırır; karıştırırsan kod derlenmez",
+  "Değer çalışma zamanında iki kat hızlı işlenir",
+  "O tip için trait yazılmasını engeller",
+  "Değeri kendiliğinden heap'e taşır",
+]
+answer = 0
+
+[[quiz.mcq]]
+id = "7-m5"
+q = "Derleyici E0502 hatasını ne zaman verir?"
+choices = [
+  "Taşınmış (move) bir değeri yeniden kullandığında",
+  "Referans döndüren bir fonksiyonda gereken lifetime'ı yazmadığında",
+  "Aynı veriyi aynı anda hem `&` hem `&mut` ile ödünç almaya çalıştığında",
+  "Farklı tipte iki değeri karşılaştırdığında",
+]
+answer = 2
+
+[[quiz.coding]]
+id = "7-q1"
+prompt = "`safe_swap(v, i, j)` fonksiyonunu yaz: `v[i]` ile `v[j]`'nin yerini değiştirir ve `true` döndürür. `i` ya da `j` slice'ın dışındaysa hiçbir şeye dokunmadan `false` döndürür. Örnek: `[1, 2, 3]` üzerinde `safe_swap(&mut v, 0, 2)` → `true` ve `v` artık `[3, 2, 1]`; `safe_swap(&mut v, 0, 3)` → `false`. Yer değiştirmeyi raw pointer ile yap: önce sınırları denetle, sonra `unsafe` blokta `std::ptr::swap(p.add(i), p.add(j))` çağır; `p`'yi `v.as_mut_ptr()` verir. İpucu: `std::ptr::swap` iki `*mut T` alır ve gösterdikleri değerlerin yerini değiştirir; ikisi aynı yeri gösterse de sorun çıkmaz."
+starter = '''
+fn safe_swap(v: &mut [i32], i: usize, j: usize) -> bool {
+    todo!()
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn swaps_two_elements() {
+        let mut v = [1, 2, 3];
+        assert!(safe_swap(&mut v, 0, 2));
+        assert_eq!(v, [3, 2, 1]);
+    }
+    #[test]
+    fn out_of_range_is_rejected() {
+        let mut v = [1, 2, 3];
+        assert!(!safe_swap(&mut v, 0, 3));
+        assert!(!safe_swap(&mut v, 5, 1));
+        assert_eq!(v, [1, 2, 3]);
+    }
+    #[test]
+    fn same_index_is_fine() {
+        let mut v = [4, 5];
+        assert!(safe_swap(&mut v, 1, 1));
+        assert_eq!(v, [4, 5]);
+        let mut empty: [i32; 0] = [];
+        assert!(!safe_swap(&mut empty, 0, 0));
+    }
+}
+'''
+solution = '''
+fn safe_swap(v: &mut [i32], i: usize, j: usize) -> bool {
+    if i >= v.len() || j >= v.len() {
+        return false;
+    }
+    let p = v.as_mut_ptr();
+    // SAFETY: i ve j sınır kontrolünden geçti; iki pointer da slice'ın içinde.
+    unsafe {
+        std::ptr::swap(p.add(i), p.add(j));
+    }
+    true
+}
+'''
+
+[[quiz.coding]]
+id = "7-q2"
+prompt = "`map!` macro'sunu tamamla: `map!{ \"a\" => 1, \"b\" => 2 }` bu iki çifti içeren bir `HashMap<&str, i32>` üretmeli. `map!{}` boş bir map vermeli, sondaki virgül de kabul edilmeli (`map!{ \"x\" => 10, }`). Desen hazır; ama macro şu an çiftleri eklemeden boş bir map döndürüyor. İpucu: üretilen kodda `$( ... )*` içine yazdığın satır, yakalanan her `$k => $v` çifti için bir kez tekrarlanır."
+starter = '''
+use std::collections::HashMap;
+
+macro_rules! map {
+    ($($k:expr => $v:expr),* $(,)?) => {{
+        let m: std::collections::HashMap<&str, i32> = std::collections::HashMap::new();
+        m
+    }};
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn builds_map() {
+        let m: HashMap<&str, i32> = map! { "a" => 1, "b" => 2 };
+        assert_eq!(m.len(), 2);
+        assert_eq!(m["a"], 1);
+        assert_eq!(m["b"], 2);
+    }
+    #[test]
+    fn empty_and_trailing_comma() {
+        let e: HashMap<&str, i32> = map! {};
+        assert!(e.is_empty());
+        let t: HashMap<&str, i32> = map! { "x" => 10, };
+        assert_eq!(t.len(), 1);
+        assert_eq!(t["x"], 10);
+    }
+    #[test]
+    fn expressions_as_values() {
+        let base = 5;
+        let m: HashMap<&str, i32> = map! { "k" => base * 2 };
+        assert_eq!(m["k"], 10);
+    }
+}
+'''
+solution = '''
+use std::collections::HashMap;
+
+macro_rules! map {
+    ($($k:expr => $v:expr),* $(,)?) => {{
+        let mut m: std::collections::HashMap<&str, i32> = std::collections::HashMap::new();
+        $( m.insert($k, $v); )*
+        m
+    }};
+}
+'''

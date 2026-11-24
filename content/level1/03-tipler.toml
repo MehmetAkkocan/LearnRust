@@ -1,0 +1,97 @@
+id = "1-03"
+title = "Temel Tipler"
+read_points = 10
+body_md = '''
+## Neden
+
+Rust'ta her değerin bir tipi vardır ve derleyici bu tipi program çalışmadan
+önce bilir. Sayı beklenen yere metin verirsen ya da iki farklı sayı tipini
+karıştırırsan kod derlenmez; hatayı program çalışırken değil, yazarken
+görürsün. Tipi çoğu zaman sen yazmazsın, derleyici değere bakıp kendi bulur.
+Yine de hangi tiplerin olduğunu ve birinden ötekine nasıl geçildiğini bilmen
+gerekir.
+
+## Nasıl
+
+Tek bir değer tutan tipler:
+
+- İşaretli tam sayılar (eksi olabilir): `i8`, `i16`, `i32`, `i64`, `i128`, `isize`
+- İşaretsiz tam sayılar (eksi olamaz): `u8`, `u16`, `u32`, `u64`, `u128`, `usize`
+- Ondalıklı sayılar: `f32`, `f64`
+- Doğru ya da yanlış: `bool` (`true` / `false`)
+- Tek karakter: `char`; tek tırnakla yazılır (`'a'`, `'ş'`)
+
+Addaki sayı, değerin kaç bit yer tuttuğunu söyler: `u8` 0 ile 255 arasını
+tutar. `usize` uzunluk ve sıra numarası için kullanılır. Tip yazmazsan tam
+sayı `i32`, ondalıklı sayı `f64` olur.
+
+Birden çok değeri bir arada tutan iki tip var. Tuple farklı tiplerde değerleri
+yan yana tutar; elemanlarına `.0`, `.1` diye ulaşırsın. Dizi (array) aynı
+tipten, sayısı baştan belli elemanlar tutar:
+
+```rust
+let point: (i32, f64) = (3, 2.5);
+let first = point.0;      // 3
+let days = [1, 2, 3];
+let n = days.len();       // 3
+```
+
+Tipi kendin yazmak istersen değişkenin adından sonra `:` koyarsın;
+yukarıdaki `point` böyle tanımlandı.
+
+Bir değeri başka bir tipe `as` ile çevirirsin. Rust bunu senin yerine yapmaz:
+
+```rust
+let a: u32 = 7;
+let b = a as f64 / 2.0; // 3.5
+```
+
+## Dikkat
+
+- Tam sayı ile ondalıklı sayı aynı işleme girmez. Yukarıdaki `a` için
+  `a / 2.0` derlenmez; `a as f64 / 2.0` yazman gerekir.
+- İki tam sayıyı bölersen küsurat atılır: `7 / 2` sonucu `3` olur, `3.5` değil.
+- Her tipin tutabileceği en büyük değer bellidir. Değeri 255 olan bir `u8`
+  değişkene 1 eklersen taşma (overflow) olur. Debug derlemede program panic
+  ile durur, yani hata mesajı verip kapanır. `--release` derlemede ise değer
+  sessizce 0'a döner. Değer sığmayacaksa daha geniş bir tip seç.
+- `as` bilgi kaybettirebilir. Değeri 300 olan bir `i32` değişkeni `as u8` ile
+  çevirirsen sonuç `44` olur, çünkü 300 `u8`'e sığmaz. Ondalıklı sayıyı tam
+  sayıya çevirirsen küsurat atılır: `3.9 as i32` sonucu `3` olur.
+'''
+example = '''
+fn main() {
+    let total: u32 = 7;
+    let half = total as f64 / 2.0;
+    let pair: (i32, bool) = (-4, true);
+    let letters = ['R', 'u', 's', 't'];
+    println!("{} {} {} {}", half, pair.0, pair.1, letters.len());
+}
+'''
+
+[exercise]
+prompt = "`percent(part: u32, total: u32) -> f64` fonksiyonunu yaz. `part`, `total`'ın yüzde kaçıysa onu ondalıklı sayı olarak döndür. Örnek: `percent(1, 4)` → 25.0. `total` hiçbir zaman sıfır gelmez. İpucu: bölmeden önce sayıları `as f64` ile çevir; yoksa tam sayı bölmesi küsuratı atar."
+starter = '''
+fn percent(part: u32, total: u32) -> f64 {
+    todo!()
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn yuzde_hesapla() {
+        assert_eq!(percent(1, 4), 25.0);
+        assert_eq!(percent(1, 2), 50.0);
+        assert_eq!(percent(0, 8), 0.0);
+        assert_eq!(percent(5, 5), 100.0);
+    }
+}
+'''
+solution = '''
+fn percent(part: u32, total: u32) -> f64 {
+    part as f64 / total as f64 * 100.0
+}
+'''
+points = 30

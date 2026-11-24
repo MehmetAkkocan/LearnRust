@@ -1,0 +1,123 @@
+title = "match: Handle Every Case"
+body_md = '''
+## Why
+
+With enums and `Option` you can say "it's one of these cases". Now you need to
+write what happens in each case. Do it with an `if / else if` chain and it's
+easy to skip a case, and you only notice when the program misbehaves. `match`
+leaves no such gap: if there is a case you haven't covered, the code doesn't
+compile. And when you add a new variant to an enum, every `match` that doesn't
+handle it becomes an error; the compiler lists the places you need to update.
+
+## How
+
+`match` compares a value against patterns, in order. Each arm is written as
+`pattern => expression`. Like `if`, `match` is an expression: the value
+produced by the matching arm becomes the value of the `match`.
+
+```rust
+enum Command {
+    Quit,
+    Move { x: i32, y: i32 },
+    Write(String),
+}
+
+fn run(c: &Command) -> i32 {
+    match c {
+        Command::Quit => 0,
+        Command::Move { x, y } => x.abs() + y.abs(),
+        Command::Write(s) => s.len() as i32,
+    }
+}
+```
+
+A pattern doesn't only ask "which variant?"; it also pulls out the data inside
+and gives it a name: in the `Move { x, y }` arm you have `x` and `y` ready to
+use, in the `Write(s)` arm you have `s`.
+
+Patterns that come in handy with numbers and other values:
+
+- `1 | 2 => ...`: 1 or 2.
+- `90..=100 => ...`: from 90 up to 100, including 100.
+- `n if n < 0 => ...`: an extra condition on the pattern (a guard). The arm
+  runs if the condition is true.
+- `n @ 1..=9 => ...`: if the value is in the range, also gives it to you as
+  `n`.
+- `_ => ...`: everything else.
+
+## Watch out
+
+- You have to cover every case. Delete the `Write` arm above and the compiler
+  says `` non-exhaustive patterns: `&Command::Write(_)` not covered ``; in
+  other words, "you didn't write the `Write` case".
+- Arms are tried from top to bottom and the first one that matches runs. `_`
+  matches everything, so it goes last; put it higher up and the arms below it
+  never get a turn.
+- Every arm must produce a value of the same type. One can't be an `i32` and
+  another a `&str`.
+- If you `match` on a reference, as above (`c: &Command`), the names in the
+  pattern are references too: `x` is a `&i32`. You won't notice when calling
+  methods, but when you need the number itself, write `*x`.
+'''
+example = '''
+enum Command {
+    Quit,
+    Move { x: i32, y: i32 },
+    Write(String),
+}
+
+fn run(c: &Command) -> i32 {
+    match c {
+        Command::Quit => 0,
+        Command::Move { x, y } => x.abs() + y.abs(),
+        Command::Write(s) => s.len() as i32,
+    }
+}
+
+fn classify(n: i32) -> &'static str {
+    match n {
+        i32::MIN..=-1 => "negative",
+        0 => "zero",
+        x if x % 2 == 0 => "positive even",
+        _ => "positive odd",
+    }
+}
+
+fn main() {
+    println!("{}", run(&Command::Move { x: -2, y: 3 }));
+    println!("{}", run(&Command::Write(String::from("hello"))));
+    println!("{}", run(&Command::Quit));
+    for n in [-5, 0, 4, 7] {
+        println!("{} -> {}", n, classify(n));
+    }
+}
+'''
+
+[exercise]
+prompt = "Write two functions; both are easy to write with `match`. `score(c)` returns a score that depends on the command: `Quit` -> 0; `Move { x, y }` -> `|x| + |y|` (e.g. 5 for x = -2, y = 3); `Write(s)` -> the length of the text in bytes (e.g. 3 for \"abc\"); `Color(r, g, b)` -> the sum of the three numbers as an `i32` (e.g. 765 for 255, 255, 255). `grade_letter(points)` returns 'A' for 90..=100, 'B' for 80..=89, 'C' for 70..=79, 'D' for 0..=69, and 'X' for any number above 100. Hint: because `c` is a reference, `r`, `g` and `b` are each a `&u8`; convert each one to `i32` before adding, as in `*r as i32`, or the sum won't fit in a `u8`."
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn command_score() {
+        assert_eq!(score(&Command::Quit), 0);
+        assert_eq!(score(&Command::Move { x: -2, y: 3 }), 5);
+        assert_eq!(score(&Command::Write("abc".to_string())), 3);
+        assert_eq!(score(&Command::Color(1, 2, 3)), 6);
+        assert_eq!(score(&Command::Color(255, 255, 255)), 765);
+    }
+
+    #[test]
+    fn letter_grade() {
+        assert_eq!(grade_letter(95), 'A');
+        assert_eq!(grade_letter(100), 'A');
+        assert_eq!(grade_letter(85), 'B');
+        assert_eq!(grade_letter(75), 'C');
+        assert_eq!(grade_letter(10), 'D');
+        assert_eq!(grade_letter(0), 'D');
+        assert_eq!(grade_letter(101), 'X');
+    }
+}
+'''

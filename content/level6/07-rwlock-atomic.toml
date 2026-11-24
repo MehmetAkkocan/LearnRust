@@ -1,0 +1,152 @@
+id = "6-07"
+title = "RwLock ve Atomik Tipler"
+read_points = 10
+body_md = '''
+## Neden
+
+`Mutex` okuyanla yazanı ayırmaz: veriye yalnız bakacak olsan bile lock'u
+alırsın ve o sırada herkes bekler. Veri sık okunup seyrek değişiyorsa
+(örneğin program ayarları) bu boşuna beklemedir. `RwLock<T>` ikisini
+ayırır: aynı anda ya birçok okuyan ya da tek bir yazan olabilir.
+
+Tek bir sayı ya da bayrak için lock bile fazladır. `std::sync::atomic`
+modülündeki atomik tipler (`AtomicUsize`, `AtomicBool` ve benzerleri)
+her işlemi tek adımda yapar; bir thread işlemin ortasındayken başka bir
+thread araya giremez.
+
+## Nasıl
+
+`RwLock`'ta `read()` okumak için, `write()` değiştirmek için guard
+verir:
+
+```rust
+use std::sync::{Arc, RwLock};
+
+let config = Arc::new(RwLock::new(String::from("v1")));
+{
+    let r = config.read().unwrap();
+    assert_eq!(*r, "v1");
+}
+*config.write().unwrap() = String::from("v2");
+```
+
+Atomik sayaç:
+
+```rust
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+let hits = AtomicUsize::new(0);
+hits.fetch_add(1, Ordering::SeqCst);
+let now = hits.load(Ordering::SeqCst);
+```
+
+- `fetch_add`, `load`, `store` gibi metotlar `&self` alır. Yani değeri
+  `mut` yapmadan ve lock almadan değiştirirsin; `Arc` içine koyup
+  thread'lere dağıtman yeter.
+- `fetch_add(1, ..)` sayıyı 1 artırır, `load` okur, `store` yazar.
+- `Ordering` parametresi, işlemin diğer thread'lere hangi sıra
+  güvencesiyle görüneceğini seçer. En sıkı ve anlaması en kolay olanı
+  `SeqCst`; başlarken hep onu kullan.
+- Atomik tip tek bir değeri korur. Birlikte değişmesi gereken birkaç
+  alan varsa `Mutex` gerekir.
+
+## Dikkat
+
+- Elinde okuma guard'ı varken aynı thread'de `write()` çağırma. `write()`
+  senin kendi guard'ının bırakılmasını bekler; bu bir deadlock'tır
+  (bazı sistemlerde panic olur).
+- `RwLock` da `Mutex` gibi poisoned olabilir: bir thread yazma lock'unu
+  tutarken panic olursa sonraki `read()` ve `write()` çağrıları `Err`
+  döndürür.
+- Sayacı önce `load` ile okuyup sonra `store` ile geri yazma. İki adımın
+  arasında başka bir thread sayacı değiştirebilir ve onun artışı
+  kaybolur. Tek adımlık `fetch_add` kullan.
+- `SeqCst` dışındaki `Ordering` seçenekleri bulması zor hatalara
+  açıktır. Emin değilsen `SeqCst` yaz.
+'''
+example = '''
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, RwLock};
+use std::thread;
+
+fn main() {
+    let config = Arc::new(RwLock::new(String::from("v1")));
+    let hits = Arc::new(AtomicUsize::new(0));
+
+    let mut handles = Vec::new();
+    for _ in 0..4 {
+        let cfg = Arc::clone(&config);
+        let h = Arc::clone(&hits);
+        handles.push(thread::spawn(move || {
+            let name = cfg.read().unwrap().clone();
+            h.fetch_add(name.len(), Ordering::SeqCst);
+        }));
+    }
+    for handle in handles {
+        handle.join().unwrap();
+    }
+
+    *config.write().unwrap() = String::from("v2-yeni");
+    println!(
+        "toplam: {}, yeni ayar: {}",
+        hits.load(Ordering::SeqCst),
+        config.read().unwrap()
+    );
+}
+'''
+
+[exercise]
+prompt = "`count_atomic(threads, per_thread)` iki sayı alır. Ortak bir `AtomicUsize` sayaç oluştur ve `threads` tane thread aç; her thread sayacı `per_thread` kez 1 artırsın. Bütün thread'leri `join` et, sonra sayacın son değerini döndür. Örnek: `count_atomic(4, 1000)` → `4000`; `count_atomic(0, 10)` → `0`."
+starter = '''
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
+use std::thread;
+
+pub fn count_atomic(threads: usize, per_thread: usize) -> usize {
+    todo!()
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn dort_thread() {
+        assert_eq!(count_atomic(4, 1000), 4000);
+    }
+
+    #[test]
+    fn sifir_thread() {
+        assert_eq!(count_atomic(0, 10), 0);
+    }
+
+    #[test]
+    fn tek_thread() {
+        assert_eq!(count_atomic(1, 5), 5);
+    }
+}
+'''
+solution = '''
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
+use std::thread;
+
+pub fn count_atomic(threads: usize, per_thread: usize) -> usize {
+    let counter = Arc::new(AtomicUsize::new(0));
+    let mut handles = Vec::new();
+    for _ in 0..threads {
+        let c = Arc::clone(&counter);
+        handles.push(thread::spawn(move || {
+            for _ in 0..per_thread {
+                c.fetch_add(1, Ordering::SeqCst);
+            }
+        }));
+    }
+    for h in handles {
+        h.join().unwrap();
+    }
+    counter.load(Ordering::SeqCst)
+}
+'''
+points = 30

@@ -1,0 +1,28 @@
+# Rust derleme çıktıları
+target/
+**/*.rs.bk
+*.pdb
+
+# Çalışma zamanı verisi (kullanıcı ilerleme kaydı: data/progress.json)
+data/
+
+# Ortam değişkenleri ve gizli bilgiler
+.env
+.env.*
+!.env.example
+
+# Loglar
+*.log
+
+# IDE / editör dosyaları
+.vscode/
+.idea/
+*.iml
+*.swp
+*.swo
+*~
+
+# İşletim sistemi dosyaları
+.DS_Store
+Thumbs.db
+desktop.ini

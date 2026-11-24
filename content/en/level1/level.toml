@@ -1,0 +1,45 @@
+title = "Basics"
+description = "You install Rust and run your first project with cargo. Then you learn variables, the basic types, functions, conditions and loops, and finally how to work with text using String."
+
+[[quiz.mcq]]
+id = "1-m1"
+q = "Why does `let x = 5; x = 6;` not compile?"
+choices = ["`x` is a variable that can't be changed; to change it you have to write `let mut x`", "The type of `x` has to be `String`", "Rust doesn't allow two statements on the same line", "`x` has to be defined with `const` first"]
+
+[[quiz.mcq]]
+id = "1-m2"
+q = "You wrote `let n = 42;` with no type, and nothing else in the code decides the type of `n`. What type does `n` get?"
+choices = ["i64", "u32", "usize", "i32"]
+
+[[quiz.mcq]]
+id = "1-m3"
+q = "What happens if you try to compile the function `fn five() -> i32 { 5; }`?"
+choices = ["It does not compile: because of the semicolon the function returns `()`, but `i32` is expected", "It compiles and the function returns 5", "It compiles and the function returns 0", "It compiles, with just a warning"]
+
+[[quiz.mcq]]
+id = "1-m4"
+q = "In the loop `for i in 0..3 { ... }`, which values does `i` take, in order?"
+choices = ["0, 1", "0, 1, 2, 3", "0, 1, 2", "1, 2, 3"]
+
+[[quiz.mcq]]
+id = "1-m5"
+q = "What does the `cargo check` command do?"
+choices = ["Compiles the program and runs it", "Looks for compile errors in the code; it builds no program and runs nothing", "Runs only the tests", "Deletes the project's dependencies"]
+
+[[quiz.coding]]
+id = "1-q1"
+prompt = "Write the function `fizzbuzz(n: u32) -> String`. If `n` is divisible by 15, return \"FizzBuzz\"; if it is divisible by 3, return \"Fizz\"; if it is divisible by 5, return \"Buzz\". If it is divisible by none of them, return the number itself as text. Examples: 3 → \"Fizz\", 5 → \"Buzz\", 30 → \"FizzBuzz\", 7 → \"7\". Hint: put the check for 15 first; otherwise the check for 3 matches 15 first and you get \"Fizz\". To turn the number into text you can write `format!(\"{}\", n)`."
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn fizz_buzz_rules() {
+        assert_eq!(fizzbuzz(3), "Fizz");
+        assert_eq!(fizzbuzz(5), "Buzz");
+        assert_eq!(fizzbuzz(15), "FizzBuzz");
+        assert_eq!(fizzbuzz(7), "7");
+        assert_eq!(fizzbuzz(30), "FizzBuzz");
+    }
+}
+'''

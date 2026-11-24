@@ -1,0 +1,73 @@
+id = "0-01"
+title = "Merhaba Dünya"
+read_points = 10
+body_md = '''
+## Neden
+
+Her yeni dilde ilk adım, ekrana bir şey yazdıran en küçük programı
+çalıştırmaktır. Bu küçük örnek; derleyicinin kurulu olduğunu, programın
+nereden başladığını ve çıktının nasıl üretildiğini tek seferde gösterir.
+Rust'ta bu adım ayrıca makroları ve string biçimlendirmeyi tanımak için
+iyi bir fırsattır, çünkü sonraki her derste bunları kullanacaksın.
+
+## Nasıl
+
+Bir Rust programı `main` fonksiyonundan başlar. Ekrana yazmak için
+`println!` makrosu kullanılır; sondaki ünlem işareti bunun sıradan bir
+fonksiyon değil, makro olduğunu belirtir.
+
+```rust
+fn main() {
+    let name = "Ayşe";
+    println!("Merhaba, {}!", name);
+}
+```
+
+- `let` bir değişken tanımlar; varsayılan olarak değiştirilemez.
+- `{}` yer tutucusu, virgülden sonra verilen değerle doldurulur.
+- Ekrana yazmak yerine bir `String` üretmek istiyorsan aynı söz
+  dizimiyle `format!` makrosunu kullanırsın: `format!("Merhaba, {}!", name)`.
+
+Bir fonksiyonun son ifadesinin sonuna noktalı virgül koymazsan o ifade
+fonksiyonun dönüş değeri olur. Bu yüzden `format!(...)` satırını
+noktalı virgülsüz bırakmak, değeri döndürmek için yeterlidir.
+
+## Dikkat
+
+- `println!` yazıp ünlemi unutursan derleyici `println` adlı bir
+  fonksiyon bulamadığını söyler.
+- `&str` ödünç alınmış bir metin dilimidir, `String` ise sahipli ve
+  büyüyebilen metindir. Fonksiyon `String` döndürüyorsa `"..."`
+  sabitini doğrudan döndüremezsin; `format!` veya `.to_string()` gerekir.
+- Son satıra noktalı virgül eklersen fonksiyon `()` döndürür ve
+  "mismatched types" hatası alırsın.
+'''
+example = '''
+fn main() {
+    println!("Merhaba, dünya!");
+}
+'''
+
+[exercise]
+prompt = "`greet(name: &str) -> String` fonksiyonu \"Merhaba, <name>!\" döndürsün."
+starter = '''
+fn greet(name: &str) -> String {
+    todo!()
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn selam() {
+        assert_eq!(greet("Ayşe"), "Merhaba, Ayşe!");
+    }
+}
+'''
+solution = '''
+fn greet(name: &str) -> String {
+    format!("Merhaba, {}!", name)
+}
+'''
+points = 30

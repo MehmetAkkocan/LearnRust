@@ -1,0 +1,189 @@
+id = 6
+slug = "eszamanlilik"
+title = "Eşzamanlılık (Concurrency)"
+description = "Bir değeri birden çok sahiple paylaşmak (Rc/RefCell, Arc/Mutex), thread açmak, channel ile mesajlaşmak, Send/Sync ve kendi yazacağın küçük bir Future executor'ı."
+
+[[quiz.mcq]]
+id = "6-m1"
+q = "Bir sayıyı birkaç thread birlikte kullanıp değiştirecek. Hangi tip buna uygundur?"
+choices = ["Rc<RefCell<i32>>", "Rc<i32>", "Arc<Mutex<i32>>", "RefCell<i32>"]
+answer = 2
+
+[[quiz.mcq]]
+id = "6-m2"
+q = "Bir `RefCell`'den aldığın `borrow_mut()` hâlâ kullanımdayken ikinci kez `borrow_mut()` çağırırsan ne olur?"
+choices = ["Kod derlenmez", "Program çalışırken panic olur", "İkinci çağrı birincinin bitmesini bekler", "Değerin bir kopyası döner"]
+answer = 1
+
+[[quiz.mcq]]
+id = "6-m3"
+q = "`for v in rx` döngüsü (ya da `rx.iter()`) ne zaman biter?"
+choices = ["İlk mesaj gelince", "1 saniye boyunca mesaj gelmezse", "Receiver clone edilince", "Bütün Sender'lar silinip bekleyen mesaj kalmayınca"]
+answer = 3
+
+[[quiz.mcq]]
+id = "6-m4"
+q = "`lock()` ile aldığın `MutexGuard`, lock'u ne zaman bırakır?"
+choices = ["Guard silinince (drop); çoğunlukla kapsam bitince", "Thread başlayınca", "Guard üzerinde unlock() çağırınca", "Ancak program bitince"]
+answer = 0
+
+[[quiz.mcq]]
+id = "6-m5"
+q = "Executor bir future'ı `poll` etti ve `Poll::Pending` aldı. Bundan sonra ne yapmalı?"
+choices = ["Future'ı hemen silmeli", "Sonuç yerine varsayılan bir değer koymalı", "Waker haber verince (ya da hemen yeniden deneyerek) future'ı tekrar poll etmeli", "Yeni bir thread açıp sonucu tahmin etmeli"]
+answer = 2
+
+[[quiz.coding]]
+id = "6-q1"
+prompt = "`word_total(chunks)` bir `Vec<String>` alır ve bütün parçalardaki toplam kelime sayısını `usize` olarak döndürür. Her parça için ayrı bir thread aç; thread kendi parçasındaki kelimeleri saysın (`split_whitespace().count()`) ve sayıyı bir mpsc channel'ına göndersin. Ana thread gelen sayıları toplayıp döndürsün. Örnek: `[\"bir iki uc\", \"dort bes\"]` → `5`; boş liste → `0`. Asıl `Sender`'ı `drop` etmeyi unutma, yoksa mesajları alan döngü bitmez."
+starter = '''
+use std::sync::mpsc;
+use std::thread;
+
+pub fn word_total(chunks: Vec<String>) -> usize {
+    todo!()
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn toplam_kelime() {
+        let chunks = vec![
+            "bir iki uc".to_string(),
+            "dort bes".to_string(),
+            "".to_string(),
+            "  alti   yedi  ".to_string(),
+        ];
+        assert_eq!(word_total(chunks), 7);
+    }
+
+    #[test]
+    fn bos_girdi() {
+        assert_eq!(word_total(Vec::new()), 0);
+    }
+
+    #[test]
+    fn cok_parca() {
+        let chunks: Vec<String> = (0..20).map(|_| "a b c".to_string()).collect();
+        assert_eq!(word_total(chunks), 60);
+    }
+}
+'''
+solution = '''
+use std::sync::mpsc;
+use std::thread;
+
+pub fn word_total(chunks: Vec<String>) -> usize {
+    let (tx, rx) = mpsc::channel();
+    for chunk in chunks {
+        let tx = tx.clone();
+        thread::spawn(move || {
+            tx.send(chunk.split_whitespace().count()).unwrap();
+        });
+    }
+    drop(tx);
+    rx.iter().sum()
+}
+'''
+points = 50
+
+[[quiz.coding]]
+id = "6-q2"
+prompt = "Birkaç thread'in aynı anda kullanabileceği basit bir `Bank` yaz. Hesaplar tek bir `Mutex<Vec<i64>>` içinde durur; hesabın numarası listedeki indeksidir. `Bank::new(balances)` verilen bakiyelerle bankayı kurar. `balance(idx)` o hesabın bakiyesini `Some(..)` olarak döndürür; öyle bir hesap yoksa `None`. `transfer(from, to, amount)` lock'u bir kez alır ve o lock'u bırakmadan `amount` kadar parayı `from` hesabından `to` hesabına aktarır; başarılıysa `Ok(())` döndürür. `from` ya da `to` geçersiz bir indeksse `Err(\"no such account\".to_string())`, `from` hesabındaki para yetmiyorsa `Err(\"insufficient funds\".to_string())` döndür. Hata durumunda hiçbir bakiye değişmesin."
+starter = '''
+use std::sync::Mutex;
+
+pub struct Bank {
+    accounts: Mutex<Vec<i64>>,
+}
+
+impl Bank {
+    pub fn new(balances: Vec<i64>) -> Self {
+        todo!()
+    }
+
+    pub fn balance(&self, idx: usize) -> Option<i64> {
+        todo!()
+    }
+
+    pub fn transfer(&self, from: usize, to: usize, amount: i64) -> Result<(), String> {
+        todo!()
+    }
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Arc;
+    use std::thread;
+
+    #[test]
+    fn tek_thread() {
+        let bank = Bank::new(vec![100, 0]);
+        assert_eq!(bank.transfer(0, 1, 30), Ok(()));
+        assert_eq!(bank.balance(0), Some(70));
+        assert_eq!(bank.balance(1), Some(30));
+        assert_eq!(bank.transfer(0, 1, 100), Err("insufficient funds".to_string()));
+        assert_eq!(bank.transfer(0, 5, 1), Err("no such account".to_string()));
+        assert_eq!(bank.balance(9), None);
+        assert_eq!(bank.balance(0), Some(70));
+        assert_eq!(bank.balance(1), Some(30));
+    }
+
+    #[test]
+    fn cok_thread() {
+        let bank = Arc::new(Bank::new(vec![1000, 0]));
+        let mut handles = Vec::new();
+        for _ in 0..4 {
+            let b = Arc::clone(&bank);
+            handles.push(thread::spawn(move || {
+                for _ in 0..100 {
+                    b.transfer(0, 1, 1).unwrap();
+                }
+            }));
+        }
+        for h in handles {
+            h.join().unwrap();
+        }
+        assert_eq!(bank.balance(0), Some(600));
+        assert_eq!(bank.balance(1), Some(400));
+    }
+}
+'''
+solution = '''
+use std::sync::Mutex;
+
+pub struct Bank {
+    accounts: Mutex<Vec<i64>>,
+}
+
+impl Bank {
+    pub fn new(balances: Vec<i64>) -> Self {
+        Bank {
+            accounts: Mutex::new(balances),
+        }
+    }
+
+    pub fn balance(&self, idx: usize) -> Option<i64> {
+        self.accounts.lock().unwrap().get(idx).map(|v| *v)
+    }
+
+    pub fn transfer(&self, from: usize, to: usize, amount: i64) -> Result<(), String> {
+        let mut acc = self.accounts.lock().unwrap();
+        if from >= acc.len() || to >= acc.len() {
+            return Err("no such account".to_string());
+        }
+        if acc[from] < amount {
+            return Err("insufficient funds".to_string());
+        }
+        acc[from] -= amount;
+        acc[to] += amount;
+        Ok(())
+    }
+}
+'''
+points = 50

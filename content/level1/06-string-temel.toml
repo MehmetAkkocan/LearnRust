@@ -1,0 +1,95 @@
+id = "1-06"
+title = "String Temelleri"
+read_points = 10
+body_md = '''
+## Neden
+
+Hemen her program metinle uğraşır: ad yazdırır, mesaj oluşturur, girdi okur.
+Rust'ta metin için iki tip var ve hangisinin ne zaman kullanılacağı ilk başta
+kafa karıştırır. `String` metni kendi içinde tutar; sonuna ekleme yapabilir,
+onu değiştirebilirsin. `&str` ise başka bir yerde duran metne bakar; onu
+okursun ama değiştiremezsin. Kodda çift tırnakla yazdığın `"merhaba"` bir
+`&str`'dir. İkisi de metni UTF-8 olarak saklar, yani Türkçe harfler sorunsuz
+çalışır. Neden iki ayrı tip olduğunu bir sonraki seviyede, ownership ve borrow
+konularında göreceksin. Burada günlük kullanımı öğrenmen yeter.
+
+## Nasıl
+
+```rust
+let a = "sabit";                      // &str
+let mut s = String::from("Merhaba "); // String
+s.push_str("dünya");                  // sonuna metin ekler
+s.push('!');                          // sonuna tek karakter ekler
+let n = s.len();                      // kaç bayt tuttuğu
+let up = s.to_uppercase();            // büyük harfli yeni bir String
+let t = "  boşluk  ".trim();          // baştaki ve sondaki boşlukları atar
+let has = s.contains("dünya");        // içinde geçiyor mu: true
+```
+
+`push_str` ve `push` metnin kendisini değiştirir. `to_uppercase` ve `trim`
+eski metne dokunmaz, sonucu yeni bir değer olarak verir.
+
+Parçaları birleştirip yeni bir `String` üretmek için `format!` kullanırsın.
+Her `{}` yerine sırayla bir değer gelir:
+
+```rust
+let name = "Ali";
+let msg = format!("Selam {}!", name); // "Selam Ali!"
+```
+
+Bir `&str`'den `String` yapmak için `String::from("x")` ya da
+`"x".to_string()` yazarsın. Bir fonksiyon metni yalnızca okuyacaksa
+parametresini `&str` yap. Böyle bir fonksiyona hem `"abc"` gibi hazır bir
+metni hem de bir `String`'i (başına `&` koyarak: `&s`) verebilirsin.
+
+## Dikkat
+
+- `len()` harf sayısını değil bayt sayısını verir. `"ş".len()` sonucu 2'dir,
+  çünkü `ş` UTF-8'de iki bayt tutar.
+- `push_str` ve `push` için değişken `mut` olmalıdır. `let s = String::from("a");`
+  yazıp ekleme yapmaya çalışırsan kod derlenmez.
+- `String` ile `&str` ayrı tiplerdir. `String` beklenen yere `"abc"` yazarsan
+  derleyici `mismatched types` der: `String` bekliyordu, `&str` buldu.
+  `String::from("abc")` yazman gerekir.
+- `s[0]` yazıp metnin ilk harfini alamazsın; kod derlenmez. UTF-8'de bir harf
+  bir bayt da tutabilir, dört bayt da. Rust bu yüzden metinde sıra numarasıyla
+  harf almaya izin vermez.
+'''
+example = '''
+fn main() {
+    let mut s = String::from("Merhaba ");
+    s.push_str("Rust");
+    s.push('!');
+    println!("{} ({} bayt)", s, s.len());
+    println!("{}", s.to_uppercase());
+}
+'''
+
+[exercise]
+prompt = "`build_greeting(name: &str) -> String` fonksiyonunu yaz. Fonksiyon bir ad alır ve \"Merhaba <name>!\" metnini döndürür. Örnek: `build_greeting(\"Ali\")` → \"Merhaba Ali!\". Metni adım adım kur: `String::from` ile başla, adı `push_str` ile, ünlemi `push` ile ekle."
+starter = '''
+fn build_greeting(name: &str) -> String {
+    todo!()
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn selamlama() {
+        assert_eq!(build_greeting("Ali"), "Merhaba Ali!");
+        assert_eq!(build_greeting("Ayşe"), "Merhaba Ayşe!");
+        assert_eq!(build_greeting(""), "Merhaba !");
+    }
+}
+'''
+solution = '''
+fn build_greeting(name: &str) -> String {
+    let mut s = String::from("Merhaba ");
+    s.push_str(name);
+    s.push('!');
+    s
+}
+'''
+points = 30

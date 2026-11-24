@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="level">
+  <p class="crumbs"><a href="/">{{ t.nav_home }}</a> &rsaquo; {{ level.title }}</p>
+  <h1>{{ t.level }} {{ level.id }}: {{ level.title }}</h1>
+  <p>{{ level.description }}</p>
+  <div class="progress-bar"><div class="progress-fill" style="width: {{ level.percent }}%"></div></div>
+  <p class="level-meta">{{ level.meta }}</p>
+  <h2>{{ t.lessons }}</h2>
+  <ol class="lesson-list">
+  {% for l in lessons %}
+    <li class="lesson{% if l.read && l.done %} lesson-done{% endif %}">
+      <a href="/ders/{{ l.id }}">{{ l.title }}</a>
+      <span class="marks">
+        <span class="mark-read{% if l.read %} on{% endif %}">{% if l.read %}{{ t.mark_read }}{% else %}{{ t.mark_unread }}{% endif %}</span>
+        <span class="mark-exercise{% if l.done %} on{% endif %}">{% if l.done %}{{ t.mark_exercise_done }}{% else %}{{ t.mark_exercise }}{% endif %}</span>
+      </span>
+    </li>
+  {% endfor %}
+  </ol>
+  {% if has_quiz %}
+  <p><a class="button quiz-link" href="/seviye/{{ level.slug }}/test">{{ quiz_label }}</a></p>
+  {% endif %}
+</section>
+{% endblock %}

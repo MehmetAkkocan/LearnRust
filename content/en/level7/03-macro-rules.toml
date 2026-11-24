@@ -1,0 +1,46 @@
+title = "Declarative Macros: macro_rules!"
+body_md = '''
+## Why
+
+A function takes values and returns a value. A macro takes code and writes new code in its place, at compile time. Things that accept any number of arguments, like `vec![1, 2, 3]` or `println!`, can't be written as functions; they are macros. Macros also shorten places where you keep writing the same pattern. You define your own with `macro_rules!`. This kind is called a declarative macro: you describe the input with patterns, and next to each pattern you write the code to produce.
+
+## How
+
+A macro is made of arms shaped like `(pattern) => { code to produce }`. In the pattern, `$name:kind` captures a piece of the input. The most common kinds: `expr` (an expression), `ident` (a name), `ty` (a type), `tt` (a single token or a group in brackets).
+
+```rust
+macro_rules! square {
+    ($x:expr) => { $x * $x };
+}
+```
+
+`square!(4)` becomes `4 * 4`.
+
+For several arguments you use repetition: `$( ... ),*` means "zero or more, separated by commas", `$( ... ),+` means "at least one". In the produced code the same `$( ... )` repeats its contents once per captured piece:
+
+```rust
+macro_rules! product {
+    () => { 1 };
+    ($($x:expr),+ $(,)?) => { 1 $(* $x)+ };
+}
+```
+
+`product!(2, 3, 4)` becomes `1 * 2 * 3 * 4`.
+
+- Arms are tried top to bottom; the first match wins.
+- `$(,)?` allows a trailing comma: `product!(2, 3,)`.
+- A repetition can hold a whole statement: `$( v.push($x); )*` produces one `push` per argument.
+- A macro can call itself again with a shorter input.
+- Define a macro before the place where you use it.
+
+## Watch out
+
+- `$x:expr` keeps the expression as one unit. `square!(2 + 1)` behaves like `(2 + 1) * (2 + 1)` and gives 9, not 5.
+- If you write `$x` twice, the expression runs twice. Put it in a variable first: `let a = $x;`.
+- When you produce more than one statement, use double braces: `=> {{ ... }}`. The outer pair belongs to the macro, the inner one opens a block. Variables defined in that block don't clash with names outside.
+- Macro errors are harder to read than function errors. If a function does the job, don't write a macro.
+- To see the code a macro produces, try `cargo expand` (installed separately).
+'''
+
+[exercise]
+prompt = "The `sum!` macro should add up the numbers you give it: `sum!()` → `0`, `sum!(1, 2, 3)` → `6`, `sum!(1 + 1, 2 * 3,)` → `8` (a trailing comma is allowed). The patterns are ready and correct, but the second arm currently produces `0` whatever you pass. Fix the code that arm produces so that every captured `$x` is added to the total."

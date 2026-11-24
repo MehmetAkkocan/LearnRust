@@ -1,0 +1,65 @@
+title = "unsafe and Raw Pointers"
+body_md = '''
+## Why
+
+The compiler leaves you alone as long as it can prove on its own that your code is memory safe. For some jobs it can't: talking to hardware, calling C code, building a data structure like `Vec` from scratch. That is where you write `unsafe`. `unsafe` does not switch the checks off; the borrow rules still apply. It only allows a few extra operations, and by writing it you say "this part is correct, and that's on me".
+
+## How
+
+The extra operation you will use most is reading or changing the value a raw pointer points to (dereferencing it). A raw pointer (`*const T`, `*mut T`) is a memory address. Unlike a reference, the compiler does not check that it is valid. Creating a raw pointer is safe; using it is what needs `unsafe`:
+
+```rust
+let mut x = 10;
+let p = &mut x as *mut i32;
+unsafe { *p += 5; } // x is now 15
+```
+
+Methods you will need when working with slices:
+
+- `v.as_ptr()` gives a `*const T` to the first element; `as_mut_ptr()` is the `*mut T` version.
+- `p.add(n)` moves the pointer forward by `n` elements. This is `unsafe` too: the result must not run past the slice.
+
+The good habit: keep the `unsafe` part small and hide it inside a safe function. That function first checks the required condition itself (is the index in bounds, is the slice empty). Then whatever the caller does, they cannot corrupt memory. Above every `unsafe` block, write a comment starting with `// SAFETY:` that says why the condition holds. If you can't write that comment, the code isn't ready.
+
+## Watch out
+
+- Dereferencing an invalid pointer (null, out of bounds, or pointing to a dropped value) is undefined behavior (UB). UB means the language promises nothing: the program usually seems to work, then breaks somewhere you never expected.
+- Creating two `&mut` references to the same data at the same time is also UB. With raw pointers you can do it without noticing.
+- If you write an `unsafe fn`, describe what the caller must guarantee under a `# Safety` heading in its doc comment.
+- "The compiler won't let me" is not a reason on its own to write `unsafe`. Look for a safe solution first.
+'''
+example = '''
+fn read_at(v: &[i32], idx: usize) -> Option<i32> {
+    if idx < v.len() {
+        // SAFETY: we just checked idx < v.len(), so the pointer stays inside the slice.
+        Some(unsafe { *v.as_ptr().add(idx) })
+    } else {
+        None
+    }
+}
+
+fn main() {
+    let mut x = 10;
+    let p = &mut x as *mut i32;
+    unsafe {
+        *p += 5;
+    }
+    println!("x = {}", x);
+
+    let data = [7, 8, 9];
+    println!("{:?} {:?}", read_at(&data, 1), read_at(&data, 10));
+}
+'''
+
+[exercise]
+prompt = "Write `last_raw(v: &[i32]) -> Option<i32>`. Return `None` if the slice is empty. Otherwise read the last element through a raw pointer instead of `v[..]`: use `v.as_ptr().add(..)` to reach the last element, read the value in an `unsafe` block and return it in `Some`. Example: `[1, 2, 3]` → `Some(3)`, `[]` → `None`. Hint: `v.is_empty()` or `v.len()` tells you whether the slice is empty."
+solution = '''
+fn last_raw(v: &[i32]) -> Option<i32> {
+    if v.is_empty() {
+        None
+    } else {
+        // SAFETY: the slice is not empty, so len - 1 is a valid index.
+        Some(unsafe { *v.as_ptr().add(v.len() - 1) })
+    }
+}
+'''

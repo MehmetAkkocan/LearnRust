@@ -1,0 +1,96 @@
+title = "Ownership and Borrowing"
+description = "Who owns a value, when is it moved and when is it copied? References, &mut, slices, and the difference between String and &str."
+
+[[quiz.mcq]]
+id = "2-m1"
+q = "What happens if you try to use `a` after the lines `let a = String::from(\"x\"); let b = a;`?"
+choices = ["You get a compile error: the value moved to b", "Nothing, a is still valid", "The program panics while running", "a is copied automatically"]
+
+[[quiz.mcq]]
+id = "2-m2"
+q = "Which of these is a `Copy` type, meaning it is copied instead of moved when you assign it?"
+choices = ["String", "&mut i32", "Every type", "i32"]
+
+[[quiz.mcq]]
+id = "2-m3"
+q = "At most how many `&mut` references to one value can exist at the same time?"
+choices = ["As many as you like", "One", "Two", "None at all"]
+
+[[quiz.mcq]]
+id = "2-m4"
+q = "What is the type of `s` in `let s = \"hello\";`?"
+choices = ["String", "char", "&str", "str"]
+
+[[quiz.mcq]]
+id = "2-m5"
+q = "What can you pass as the argument to `fn f(s: &str)`?"
+choices = ["Only a String value", "Both &String and &str", "Only text written as \"...\"", "Nothing"]
+
+[[quiz.coding]]
+id = "2-q1"
+prompt = '''Write `last_word(s: &str) -> &str`. The function returns the last word of the text, that is, the part after the last space, as a slice. If the text has no space at all, it returns the whole text. Examples: `"one two café"` → `"café"`, `"single"` → `"single"`, `""` → `""`.'''
+starter = '''
+fn last_word(s: &str) -> &str {
+    todo!()
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn last() {
+        assert_eq!(last_word("one two café"), "café");
+        assert_eq!(last_word("single"), "single");
+    }
+    #[test]
+    fn empty() {
+        assert_eq!(last_word(""), "");
+    }
+}
+'''
+solution = '''
+fn last_word(s: &str) -> &str {
+    let mut start = 0;
+    for (i, c) in s.char_indices() {
+        if c == ' ' {
+            start = i + 1;
+        }
+    }
+    &s[start..]
+}
+'''
+
+[[quiz.coding]]
+id = "2-q2"
+prompt = '''Write `upper_and_len(s: &mut String) -> usize`. The function turns the text `s` points to into upper case in place (the caller's variable changes) and returns the new length of the text in bytes. Example: if the text is `"rust"`, after the call it is `"RUST"` and the function returns `4`. Hint: `s.to_uppercase()` gives you a new `String`; write it over the old text with `*s = ...`.'''
+starter = '''
+fn upper_and_len(s: &mut String) -> usize {
+    todo!()
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn uppercases() {
+        let mut s = String::from("rust");
+        let n = upper_and_len(&mut s);
+        assert_eq!(s, "RUST");
+        assert_eq!(n, 4);
+    }
+    #[test]
+    fn empty_text() {
+        let mut s = String::new();
+        assert_eq!(upper_and_len(&mut s), 0);
+        assert_eq!(s, "");
+    }
+}
+'''
+solution = '''
+fn upper_and_len(s: &mut String) -> usize {
+    *s = s.to_uppercase();
+    s.len()
+}
+'''

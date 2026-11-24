@@ -1,0 +1,87 @@
+title = "Write Your Own Iterator"
+body_md = '''
+## Why
+
+The `for` loop and the methods you saw in the last lesson, such as `map`,
+`filter` and `sum`, do not work only with `Vec`; they work with any type
+that implements the `Iterator` trait. Implement that trait for your own
+type and you can loop over it with `for` and use it in an adaptor chain.
+The only method you have to write is `next`; the rest comes for free.
+
+## How
+
+The `Iterator` trait asks you for two things:
+
+- `type Item`: the type of the items you produce. A type defined inside a
+  trait like this is called an associated type.
+- `next`: returns the next item as `Some(item)`; when nothing is left it
+  returns `None`.
+
+An iterator that counts down:
+
+```rust
+struct Countdown {
+    n: u32,
+}
+
+impl Iterator for Countdown {
+    type Item = u32;
+
+    fn next(&mut self) -> Option<u32> {
+        if self.n == 0 {
+            None
+        } else {
+            let current = self.n;
+            self.n -= 1;
+            Some(current)
+        }
+    }
+}
+```
+
+An iterator remembers where it is in its own fields; here that is `n`.
+Each call to `next` hands out one item and moves the state one step
+forward. That is why `next` takes `&mut self`.
+
+Now you can write `let c = Countdown { n: 3 };` and loop with
+`for x in c`; you get 3, 2, 1 in order. The adaptors are ready too:
+`Countdown { n: 4 }.map(|x| x * 2).collect::<Vec<_>>()` gives you
+`[8, 6, 4, 2]`.
+
+You can also write a sequence that never ends: `next` never returns
+`None`, it always returns `Some`. When you use such an iterator, take
+only the first `n` items with the `take(n)` adaptor.
+
+## Watch out
+
+- If you forget to advance the state inside `next`, you get the same item
+  every time and the `for` loop never ends.
+- Do not call `collect()` or `sum()` directly on an infinite iterator;
+  the program never finishes. Limit it with `take` first.
+- The real return type of `next` is `Option<Self::Item>`. If you wrote
+  `Item = u32`, `Option<u32>` is the same thing.
+- If you are going to call `next` by hand, declare the variable with
+  `let mut`. A `for` loop does not need that.
+- A `for` loop takes the iterator (a move); you cannot use the same
+  variable after the loop.
+'''
+
+[exercise]
+prompt = "Finish the `Iterator` trait for `Countdown`: each call to `next` returns the values `n`, `n - 1`, ..., `1` in order, wrapped in `Some`, and returns `None` once the numbers run out. Example: `Countdown::new(3)` produces `3`, `2`, `1` in order; `Countdown::new(0)` produces no items."
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn counts_down() {
+        let v: Vec<u32> = Countdown::new(3).collect();
+        assert_eq!(v, vec![3, 2, 1]);
+    }
+    #[test]
+    fn empty_and_adaptors() {
+        assert_eq!(Countdown::new(0).count(), 0);
+        let s: u32 = Countdown::new(4).map(|x| x * 2).sum();
+        assert_eq!(s, 20);
+    }
+}
+'''

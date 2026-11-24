@@ -1,0 +1,104 @@
+title = "Send and Sync: How the Compiler Knows What Is Thread-Safe"
+body_md = '''
+## Why
+
+You may have noticed something in the earlier lessons: you can't hand an
+`Rc` to another thread, but you can hand over an `Arc`. How does the
+compiler know the difference? From two traits: `Send` and `Sync`.
+
+These are called marker traits. They have no methods at all; they are
+like a label stuck on a type. The label tells the compiler "this type
+can be used between threads in this way". Rust's ability to catch data
+races at compile time rests on these two labels.
+
+## How
+
+- `T: Send`: a value of type `T` can be moved to another thread.
+- `T: Sync`: several threads can look at the same value at the same
+  time through a `&T` reference. Put another way, `T` is `Sync` if `&T`
+  is `Send`.
+
+`thread::spawn` asks for these trait bounds:
+
+```rust
+pub fn spawn<F, T>(f: F) -> JoinHandle<T>
+where
+    F: FnOnce() -> T + Send + 'static,
+    T: Send + 'static,
+```
+
+So both the closure (together with everything it captures) and the
+value it returns must be `Send`.
+
+- Most types are `Send + Sync` automatically: numbers, `String`, and
+  `Vec<T>` if its elements are.
+- `Rc<T>` is neither; its counter breaks if two threads change it at
+  the same moment.
+- `RefCell<T>` can be moved to another thread (it is `Send` if
+  `T: Send`), but it is not `Sync`; its borrow check assumes a single
+  thread.
+- `Mutex<T>` is `Sync` if `T: Send`. That is why you can share an
+  `Arc<Mutex<T>>` between threads.
+- A struct or enum you write yourself gets these automatically if all
+  of its fields are `Send`/`Sync`; you don't have to write anything.
+
+## Watch out
+
+- If you use an `Rc` inside a closure and give that closure to `spawn`,
+  you get this error: "`Rc<i32>` cannot be sent between threads safely".
+  The fix is to use `Arc` instead of `Rc`.
+- You can also stick the label on by hand, by writing
+  `unsafe impl Send for X {}`. Then the responsibility for safety moves
+  from the compiler to you; if you are wrong, there is no telling what
+  the program will do (undefined behavior). You almost never need it.
+- `Send` and `Sync` don't lock or protect anything; they only say what
+  is allowed. To change shared data you still need a tool such as
+  `Mutex`.
+'''
+example = '''
+use std::cell::RefCell;
+use std::rc::Rc;
+use std::sync::{Arc, Mutex};
+
+fn is_send<T: Send>() {}
+fn is_sync<T: Sync>() {}
+
+fn main() {
+    // These lines compile: the types have the trait that is asked for.
+    is_send::<Vec<i32>>();
+    is_sync::<Mutex<i32>>();
+    is_send::<Arc<Mutex<i32>>>();
+    is_send::<RefCell<i32>>();
+
+    // If you remove the // in front of the two lines below, the code stops compiling:
+    // is_send::<Rc<i32>>();
+    // is_sync::<RefCell<i32>>();
+    let _unused: Option<Rc<i32>> = None;
+
+    println!("The Send/Sync checks passed at compile time.");
+}
+'''
+
+[exercise]
+prompt = "`with_thread(value, f)` takes a value and a closure. Move both into a new thread, compute `f(value)` in that thread, then get the result with `join` and return it. Example: `with_thread(String::from(\"rust\"), |s| s.to_uppercase())` → `\"RUST\"`. Don't change the `Send + 'static` bounds in the signature; without them `thread::spawn` won't accept these values."
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn on_a_vec() {
+        let out = with_thread(vec![1, 2, 3], |mut v| {
+            v.push(4);
+            v
+        });
+        assert_eq!(out, vec![1, 2, 3, 4]);
+    }
+
+    #[test]
+    fn on_a_string() {
+        let out = with_thread(String::from("rust"), |s| s.to_uppercase());
+        assert_eq!(out, "RUST");
+    }
+}
+'''

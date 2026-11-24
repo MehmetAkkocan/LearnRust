@@ -1,0 +1,93 @@
+id = "1-01"
+title = "Kurulum ve Cargo"
+read_points = 10
+body_md = '''
+## Neden
+
+Rust yazmaya başlamak için üç aracı tanıman yeter. `rustup` Rust'ı
+bilgisayarına kurar ve güncel tutar. `rustc` derleyicidir: yazdığın kodu
+çalışabilir bir programa çevirir. `cargo` ise günlük işlerin hepsini yapar:
+proje açar, kodu derler, programı çalıştırır, testleri çalıştırır, başkalarının
+yazdığı kütüphaneleri indirir. `rustc`'yi elle çağırman neredeyse hiç
+gerekmez; `cargo` onu senin yerine çağırır.
+
+## Nasıl
+
+En çok kullanacağın komutlar:
+
+```text
+cargo new selam        # "selam" adında yeni bir proje klasörü açar
+cargo run              # derler, sonra çalıştırır
+cargo check            # yalnızca hata var mı diye bakar, program üretmez
+cargo build --release  # hızlı çalışan, optimize edilmiş program üretir
+cargo test             # testleri çalıştırır
+```
+
+`cargo new` iki dosya hazırlar. `Cargo.toml` içinde projenin adı, sürümü ve
+bağımlılıkları yazar; bağımlılık, projende kullandığın kütüphane demektir.
+`src/main.rs` programın kodudur; program buradaki `main` fonksiyonundan
+başlar. Derleme çıktıları `target/` klasörüne gider. Bu klasör her derlemede
+yeniden üretilebilir, o yüzden git'e eklenmez.
+
+Kodda hata varsa derleyici yerini gösterir, çoğu zaman nasıl düzelteceğini de
+söyler. Mesajı atlamadan oku; Rust öğrenirken en çok ondan yararlanırsın.
+
+Bu uygulamadaki egzersizlerde komut yazmazsın. Ya boş bir fonksiyonun içini
+doldurursun ya da derlenen ama yanlış sonuç veren bir kodu düzeltirsin; hazır
+testler sonucu denetler. İlk egzersizde şu fonksiyonun bozuk bir hali var:
+
+```rust
+fn version_line(name: &str, version: &str) -> String {
+    format!("{} v{}", name, version)
+}
+```
+
+`format!` bir metin üretir: her `{}` yerine, virgülden sonra yazdığın değerleri
+sırayla koyar. `version_line("app", "1.0")` sonucu `"app v1.0"` olur.
+`println!` aynı şekilde çalışır, ama metni ekrana yazar. Adlarının sonundaki
+`!`, bunların fonksiyon değil macro olduğunu gösterir; şimdilik fonksiyon gibi
+kullanman yeter.
+
+## Dikkat
+
+- Kod yazarken hata aramak için `cargo check` kullan. Program üretmediği için
+  `cargo run`'dan hızlı biter.
+- `cargo build` ve `cargo run` normalde debug sürümü üretir: çabuk derlenir ama
+  program yavaş çalışır. Programın hızını ölçeceksen `--release` ile derle.
+- Derleyicinin uyarılarını (warning) geçiştirme. Uyarı varken de program
+  derlenir, ama uyarı çoğu zaman gerçek bir soruna işaret eder.
+'''
+example = '''
+fn version_line(name: &str, version: &str) -> String {
+    format!("{} v{}", name, version)
+}
+
+fn main() {
+    println!("{}", version_line("selam", "0.1.0"));
+}
+'''
+
+[exercise]
+prompt = "`version_line(name, version)` iki metin alır ve bunları \"<name> v<version>\" biçiminde birleştirip döndürür. Örnek: `version_line(\"app\", \"1.0\")` → \"app v1.0\". Verilen kod derleniyor ama sürümün önüne \"v\" harfini koymuyor. Kodu düzelt."
+starter = '''
+fn version_line(name: &str, version: &str) -> String {
+    format!("{} {}", name, version)
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn surum_satiri() {
+        assert_eq!(version_line("app", "1.0"), "app v1.0");
+        assert_eq!(version_line("rustlings", "0.3.2"), "rustlings v0.3.2");
+    }
+}
+'''
+solution = '''
+fn version_line(name: &str, version: &str) -> String {
+    format!("{} v{}", name, version)
+}
+'''
+points = 30

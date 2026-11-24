@@ -1,0 +1,113 @@
+title = "Lifetimes: What 'a Tells the Compiler"
+body_md = '''
+## Why
+
+A reference looks at a value owned by someone else. Use it after that
+value is dropped and you read something that is gone. Rust forbids this:
+the compiler tracks how long every reference stays valid. That span is
+called a lifetime.
+
+Usually the compiler works lifetimes out itself and you write nothing.
+But when a function takes two references and returns one, it cannot tell
+which parameter the result comes from. It stops with
+`missing lifetime specifier` and asks you to spell out the connection.
+
+## How
+
+A lifetime name starts with an apostrophe; by habit people write `'a`. You
+introduce it with `<'a>` after the function name, then use it in the
+reference types:
+
+```rust
+fn longest<'a>(a: &'a str, b: &'a str) -> &'a str {
+    if a.len() >= b.len() { a } else { b }
+}
+```
+
+This signature says: the result may come from `a` or `b`, so you can use
+it only while both are valid. Once either is dropped, the result is
+unusable too.
+
+A struct that holds a reference needs a lifetime too:
+
+```rust
+struct Excerpt<'a> {
+    part: &'a str,
+}
+```
+
+It means: an `Excerpt` cannot outlive the text it looks at.
+
+Methods have a subtle point. With `fn first_word(&self) -> &str` the
+compiler ties the result to `self`; once the struct is dropped, the
+result is unusable. With `-> &'a str` the result is tied to the original
+text, not the struct, and stays valid after the struct is gone.
+
+`'static` is a special lifetime meaning "valid until the program ends".
+Text typed directly into your code, like `"hello"`, is `'static`.
+
+## Watch out
+
+- Writing a lifetime never makes a value live longer. You only describe a
+  connection that already exists.
+- You cannot return a reference to a `String` you created inside the
+  function; that `String` is dropped when the function ends. The compiler
+  says `cannot return reference to local variable`. The fix: return the
+  `String` itself, not a reference.
+- Do not write `'static` everywhere when you hit an error. That solves
+  nothing; the compiler now demands that the value live until the program
+  ends.
+- If a function takes a single reference, or is a method taking `&self`,
+  you need no `'a`; the compiler fills it in. That is why `first_word` in
+  Level 2 needed no lifetime.
+'''
+example = '''
+struct Excerpt<'a> {
+    part: &'a str,
+}
+
+fn longest<'a>(a: &'a str, b: &'a str) -> &'a str {
+    if a.len() >= b.len() { a } else { b }
+}
+
+fn main() {
+    let text = String::from("Learning Rust is fun. Keep going.");
+    let first = text.split('.').next().unwrap_or("");
+    let ex = Excerpt { part: first };
+    println!("Excerpt: {}", ex.part);
+    println!("Longer one: {}", longest("apple", "banana"));
+}
+'''
+
+[exercise]
+prompt = '''The signatures are ready; you write the bodies. `longest(a, b)` returns the longer of the two strings (measure with `len()`); if the lengths are equal it returns `a`. Example: `longest("abc", "de")` → `"abc"`. `Excerpt::first_word` returns the part of the text before the first space, that is, the first word; if the text has no space it returns the whole text, and if the text is empty it returns `""`. Example: `"hello world"` → `"hello"`. Because the return type is `&'a str`, the result stays valid even after the `Excerpt` is dropped. Hint: as you did in `first_word` in Level 2, find the first space with a `for (i, c) in self.text.char_indices()` loop and return the slice `&self.text[..i]`.'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn longer_one() {
+        assert_eq!(longest("abc", "de"), "abc");
+        assert_eq!(longest("a", "bcd"), "bcd");
+    }
+    #[test]
+    fn first_on_tie() {
+        assert_eq!(longest("ab", "cd"), "ab");
+    }
+    #[test]
+    fn first_word_of_text() {
+        let e = Excerpt { text: "hello world" };
+        assert_eq!(e.first_word(), "hello");
+        assert_eq!(Excerpt { text: "" }.first_word(), "");
+    }
+    #[test]
+    fn valid_after_struct_is_dropped() {
+        let w;
+        {
+            let e = Excerpt { text: "one two" };
+            w = e.first_word();
+        }
+        assert_eq!(w, "one");
+    }
+}
+'''

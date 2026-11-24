@@ -1,0 +1,76 @@
+id = 1
+slug = "temeller"
+title = "Temeller"
+description = "Rust'ı kurup cargo ile ilk projeni çalıştırırsın. Sonra değişkenleri, temel tipleri, fonksiyonları, koşul ve döngüleri, son olarak da String ile metin işlemeyi öğrenirsin."
+
+[[quiz.mcq]]
+id = "1-m1"
+q = "`let x = 5; x = 6;` kodu neden derlenmez?"
+choices = ["`x` değiştirilemez bir değişken; değiştirmek için `let mut x` yazman gerekir", "`x`'in tipi `String` olmalı", "Rust'ta aynı satıra iki komut yazılamaz", "`x` önce `const` ile tanımlanmalı"]
+answer = 0
+points = 10
+
+[[quiz.mcq]]
+id = "1-m2"
+q = "`let n = 42;` yazdın, tip belirtmedin ve kodun başka hiçbir yeri de `n`'in tipini belirlemiyor. `n` hangi tipte olur?"
+choices = ["i64", "u32", "usize", "i32"]
+answer = 3
+points = 10
+
+[[quiz.mcq]]
+id = "1-m3"
+q = "`fn five() -> i32 { 5; }` fonksiyonunu derlemeye çalışırsan ne olur?"
+choices = ["Derlenmez: noktalı virgül yüzünden fonksiyon `()` döndürür, oysa `i32` bekleniyor", "Derlenir, fonksiyon 5 döndürür", "Derlenir, fonksiyon 0 döndürür", "Derlenir, yalnızca bir uyarı çıkar"]
+answer = 0
+points = 10
+
+[[quiz.mcq]]
+id = "1-m4"
+q = "`for i in 0..3 { ... }` döngüsünde `i` sırayla hangi değerleri alır?"
+choices = ["0, 1", "0, 1, 2, 3", "0, 1, 2", "1, 2, 3"]
+answer = 2
+points = 10
+
+[[quiz.mcq]]
+id = "1-m5"
+q = "`cargo check` komutu ne yapar?"
+choices = ["Programı derler ve çalıştırır", "Kodda derleme hatası var mı diye bakar; program üretmez, çalıştırmaz", "Yalnızca testleri çalıştırır", "Projenin bağımlılıklarını siler"]
+answer = 1
+points = 10
+
+[[quiz.coding]]
+id = "1-q1"
+prompt = "`fizzbuzz(n: u32) -> String` fonksiyonunu yaz. `n` 15'e tam bölünüyorsa \"FizzBuzz\", 3'e bölünüyorsa \"Fizz\", 5'e bölünüyorsa \"Buzz\" döndür. Hiçbirine bölünmüyorsa sayının kendisini metin olarak döndür. Örnekler: 3 → \"Fizz\", 5 → \"Buzz\", 30 → \"FizzBuzz\", 7 → \"7\". İpucu: 15 kontrolünü en başa koy; yoksa 15 için önce 3 kontrolü tutar ve \"Fizz\" döner. Sayıyı metne çevirmek için `format!(\"{}\", n)` yazabilirsin."
+starter = '''
+fn fizzbuzz(n: u32) -> String {
+    todo!()
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn fizz_buzz_kurallari() {
+        assert_eq!(fizzbuzz(3), "Fizz");
+        assert_eq!(fizzbuzz(5), "Buzz");
+        assert_eq!(fizzbuzz(15), "FizzBuzz");
+        assert_eq!(fizzbuzz(7), "7");
+        assert_eq!(fizzbuzz(30), "FizzBuzz");
+    }
+}
+'''
+solution = '''
+fn fizzbuzz(n: u32) -> String {
+    if n % 15 == 0 {
+        String::from("FizzBuzz")
+    } else if n % 3 == 0 {
+        String::from("Fizz")
+    } else if n % 5 == 0 {
+        String::from("Buzz")
+    } else {
+        format!("{}", n)
+    }
+}
+'''
+points = 50

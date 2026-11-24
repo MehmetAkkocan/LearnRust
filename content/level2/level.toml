@@ -1,0 +1,103 @@
+id = 2
+slug = "sahiplik"
+title = "Ownership ve Borrow"
+description = "Bir değerin sahibi kimdir, değer ne zaman taşınır, ne zaman kopyalanır? Referanslar, &mut, slice ve String ile &str arasındaki fark."
+
+[[quiz.mcq]]
+id = "2-m1"
+q = "`let a = String::from(\"x\"); let b = a;` satırlarından sonra `a`'yı kullanmaya çalışırsan ne olur?"
+choices = ["Derleme hatası alırsın: değer b'ye taşındı", "Bir şey olmaz, a hâlâ geçerlidir", "Program çalışırken panic olur", "a kendiliğinden kopyalanır"]
+answer = 0
+
+[[quiz.mcq]]
+id = "2-m2"
+q = "Hangisi bir `Copy` tipidir, yani atanınca taşınmaz, kopyalanır?"
+choices = ["String", "&mut i32", "Bütün tipler", "i32"]
+answer = 3
+
+[[quiz.mcq]]
+id = "2-m3"
+q = "Bir değere aynı anda en fazla kaç tane `&mut` referansı olabilir?"
+choices = ["İstediğin kadar", "Bir", "İki", "Hiç olamaz"]
+answer = 1
+
+[[quiz.mcq]]
+id = "2-m4"
+q = "`let s = \"merhaba\";` satırında `s`'nin tipi nedir?"
+choices = ["String", "char", "&str", "str"]
+answer = 2
+
+[[quiz.mcq]]
+id = "2-m5"
+q = "`fn f(s: &str)` fonksiyonuna argüman olarak ne verebilirsin?"
+choices = ["Yalnızca bir String değeri", "Hem &String hem &str", "Yalnızca \"...\" diye yazılmış metin", "Hiçbir şey"]
+answer = 1
+
+[[quiz.coding]]
+id = "2-q1"
+prompt = '''`son_kelime(s: &str) -> &str` fonksiyonunu yaz. Fonksiyon metnin son kelimesini, yani son boşluktan sonraki kısmı slice olarak döndürür. Metinde hiç boşluk yoksa tamamını döndürür. Örnekler: `"bir iki üç"` → `"üç"`, `"tek"` → `"tek"`, `""` → `""`.'''
+starter = '''
+fn son_kelime(s: &str) -> &str {
+    todo!()
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn son() {
+        assert_eq!(son_kelime("bir iki üç"), "üç");
+        assert_eq!(son_kelime("tek"), "tek");
+    }
+    #[test]
+    fn bos() {
+        assert_eq!(son_kelime(""), "");
+    }
+}
+'''
+solution = '''
+fn son_kelime(s: &str) -> &str {
+    let mut start = 0;
+    for (i, c) in s.char_indices() {
+        if c == ' ' {
+            start = i + 1;
+        }
+    }
+    &s[start..]
+}
+'''
+
+[[quiz.coding]]
+id = "2-q2"
+prompt = '''`buyut_ve_uzunluk(s: &mut String) -> usize` fonksiyonunu yaz. Fonksiyon `s`'nin gösterdiği metni yerinde büyük harfe çevirir (çağıranın değişkeni değişir) ve metnin yeni uzunluğunu bayt cinsinden döndürür. Örnek: metin `"rust"` ise çağrıdan sonra `"RUST"` olur ve fonksiyon `4` döndürür. İpucu: `s.to_uppercase()` yeni bir `String` verir; onu `*s = ...` ile eski metnin yerine yaz.'''
+starter = '''
+fn buyut_ve_uzunluk(s: &mut String) -> usize {
+    todo!()
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn buyutur() {
+        let mut s = String::from("rust");
+        let n = buyut_ve_uzunluk(&mut s);
+        assert_eq!(s, "RUST");
+        assert_eq!(n, 4);
+    }
+    #[test]
+    fn bos_metin() {
+        let mut s = String::new();
+        assert_eq!(buyut_ve_uzunluk(&mut s), 0);
+        assert_eq!(s, "");
+    }
+}
+'''
+solution = '''
+fn buyut_ve_uzunluk(s: &mut String) -> usize {
+    *s = s.to_uppercase();
+    s.len()
+}
+'''

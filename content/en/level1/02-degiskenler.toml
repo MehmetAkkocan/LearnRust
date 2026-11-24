@@ -1,0 +1,80 @@
+title = "Variables and mut"
+body_md = '''
+## Why
+
+In Rust, unless you say otherwise when you define a variable, you can't change
+it later: you give it a value once and it keeps that value. This looks
+restrictive at first, but it makes your life easier. When you read a long
+function you don't have to wonder whether a value was changed somewhere
+further down. The variables that do need to change, you mark with `mut`; then
+anyone reading the code sees at once what can change.
+
+## How
+
+You define a variable with `let`. If you are going to change its value later,
+you write `let mut`:
+
+```rust
+let x = 5;          // cannot be changed
+let mut y = 10;     // can be changed
+y += 1;             // y is now 11
+y *= 2;             // y is now 22
+```
+
+For fixed values that stay the same everywhere in the program, you use
+`const`. You must write its type; its name is written in capital letters:
+
+```rust
+const MAX_LIVES: u32 = 3;
+```
+
+There is also shadowing: you write `let` again with the same name. This is a
+brand-new variable; from that line on, the name refers to the new one. The new
+variable can have a different type from the old one:
+
+```rust
+let spaces = "   ";
+let spaces = spaces.len(); // no longer text, now a number: 3
+```
+
+Shadowing and `mut` are not the same thing. `mut` changes the value of one
+variable, and its type has to stay the same. With shadowing, each `let`
+creates a new variable; the old one doesn't change, you just can't reach it by
+that name any more.
+
+## Watch out
+
+- `let x = 5; x = 6;` does not compile. The compiler says `cannot assign twice
+  to immutable variable`: you tried to give a second value to a variable that
+  can't be changed. The fix is to write `let mut x = 5;`.
+- Don't put `mut` on every variable. The compiler warns you about a `mut`
+  variable that you never change.
+- A `const` value must be known at compile time, like `3` or `60 * 60`. A
+  value that only appears while the program runs (a number the user types in,
+  for example) can't be a `const`; use `let` for that.
+'''
+example = '''
+const MAX_LIVES: u32 = 3;
+
+fn main() {
+    let mut lives = MAX_LIVES;
+    lives -= 1;
+    let lives = lives * 10; // shadowing: a new variable with the same name
+    println!("Score multiplier: {}", lives);
+}
+'''
+
+[exercise]
+prompt = "Write the function `apply_bonus(score: i32) -> i32`. It takes a score, first adds 10, then multiplies the result by 2 and returns it. Example: 5 → (5 + 10) * 2 = 30. Use a `let mut` variable: put the score in it, then change it with `+=` and `*=`. Hint: to return the value, write the variable's name on the last line of the function with no semicolon after it."
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn applies_bonus() {
+        assert_eq!(apply_bonus(5), 30);
+        assert_eq!(apply_bonus(0), 20);
+        assert_eq!(apply_bonus(-10), 0);
+    }
+}
+'''

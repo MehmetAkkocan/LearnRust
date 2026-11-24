@@ -1,0 +1,115 @@
+title = "String and &str"
+body_md = '''
+## Why
+
+Rust has two types for text: `String` and `&str`. You have been using both
+since the first level, and by now you know enough to understand the
+difference. It is about ownership: a `String` owns its text, while a `&str`
+is a reference that looks at text owned by someone else. Once you know which
+one to use where, you stop making needless copies and you can fix errors like
+"expected `String`, found `&str`" right away.
+
+## How
+
+- `String`: keeps the text on the heap and owns it. It can grow and change.
+- `&str`: a slice that points to a whole text or to part of one. It only
+  reads; it does not own the text.
+
+Text you write in your code as `"hello"` has the type `&str`. To make a
+`String` from a `&str`, use `String::from(...)`, `.to_string()` or `format!`.
+The other direction is easier: just put `&` in front of the `String`.
+
+```rust
+let a: &str = "hello";
+let mut b: String = a.to_string();
+b.push_str(" world");
+let c: &str = &b; // String -> &str
+```
+
+When you write a function, these two rules will serve you well:
+
+- If you only read the text, make the parameter `&str`. Then the function
+  accepts both `"..."` and `&String`; Rust turns a `&String` into a `&str`
+  automatically (this is called deref coercion).
+- If the function produces a new text, return a `String`; the new text needs
+  an owner.
+
+To go through the characters of a text in order, write `for c in s.chars()`;
+each `c` is a `char`. Turning a single `char` into upper case is a little
+roundabout, because the upper-case form of some letters is more than one
+character (`ß` → `SS`). So `c.to_uppercase()` does not return a single
+`char`; it returns an iterator that hands out the characters one by one. You
+turn it into a `String` with `collect` and append that to your result:
+
+```rust
+let upper = c.to_uppercase().collect::<String>();
+result.push_str(&upper);
+```
+
+To append a character as it is, `result.push(c)` is enough.
+
+## Watch out
+
+- `"a" + "b"` does not compile. There has to be a `String` on the left of
+  the `+`: `String::from("a") + "b"`. This consumes (moves) the `String` on
+  the left; you keep the result in a new variable.
+- You can't return `"..."` from a function whose return type is `String`;
+  write `"...".to_string()`.
+- If you make a parameter a `String` when you don't need to, the caller has
+  to give up their value or `clone` it. If you only read, take a `&str`.
+'''
+example = '''
+fn greet(name: &str) -> String {
+    format!("Hello, {}!", name)
+}
+
+fn main() {
+    let literal = "Alice";
+    let owned = String::from("Bob");
+    println!("{}", greet(literal));
+    println!("{}", greet(&owned));
+
+    let mut b = literal.to_string();
+    b.push_str(" Smith");
+    println!("{}", b);
+}
+'''
+
+[exercise]
+prompt = '''Write `capitalize_first(s: &str) -> String`. The function turns only the first character of the text into upper case, leaves the rest untouched, and returns the result as a new `String`. For an empty text it returns an empty `String`. Examples: `"rust"` → `"Rust"`, `"Rust"` → `"Rust"`, `""` → `""`.'''
+starter = '''
+fn capitalize_first(s: &str) -> String {
+    todo!()
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn capitalizes() {
+        assert_eq!(capitalize_first("rust"), "Rust");
+        assert_eq!(capitalize_first("Rust"), "Rust");
+        assert_eq!(capitalize_first("a"), "A");
+    }
+    #[test]
+    fn empty() {
+        assert_eq!(capitalize_first(""), "");
+    }
+}
+'''
+solution = '''
+fn capitalize_first(s: &str) -> String {
+    let mut result = String::new();
+    let mut first = true;
+    for c in s.chars() {
+        if first {
+            result.push_str(&c.to_uppercase().collect::<String>());
+            first = false;
+        } else {
+            result.push(c);
+        }
+    }
+    result
+}
+'''

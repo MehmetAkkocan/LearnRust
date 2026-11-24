@@ -1,0 +1,107 @@
+title = "Reading Compiler Errors and Restructuring Code"
+body_md = '''
+## Why
+
+When the borrow checker complains, the first idea is to add a `clone()` and move on. That usually hides the problem instead of solving it. The message is really about the shape of your code: the same data is accessed twice at once, and at least one access writes. Once you can read it you also see what to do: restructure the code so the two accesses no longer overlap.
+
+## How
+
+First look at the error code (such as `E0502`) and the lines the arrows point to. The compiler marks where the first borrow starts, where the second arrives, and where the first is used afterwards. The three most common errors:
+
+```text
+error[E0502]: cannot borrow `*self` as mutable because it is also borrowed as immutable
+```
+
+Meaning: `self` is borrowed for reading right now, so you can't borrow it again to change it. The typical cause is calling a `&mut self` method inside a `for item in &self.items` loop. A method call borrows all of `self`; a field access like `self.log.push(..)` borrows only that field. The compiler sees that `items` and `log` are different fields and allows it. A second way out: keep an **index** instead of a reference. An index is just a number and borrows nothing; you make the change later through `self.items[i]`.
+
+```text
+error[E0499]: cannot borrow `*v` as mutable more than once at a time
+```
+
+Meaning: two `&mut` can't exist at once. It appears when you write `let a = &mut v[0]; let b = &mut v[1];` and use both. Do the steps one after the other (`v[0] -= x; v[1] += x;`), or take two non-overlapping slices with `v.split_at_mut(1)`.
+
+```text
+error[E0597]: `x` does not live long enough
+```
+
+Meaning: the reference lives longer than the value it points to. Define the value in an outer scope that also covers where the reference is used, or pass the value itself (a `String`, a copy) instead.
+
+## Watch out
+
+- `clone()` or `Rc<RefCell<_>>` silences the error but usually leaves the design problem in place.
+- The shorter a reference lives, the less it gets in the way: copy the value you need into a local variable.
+- If you keep hitting these errors on one struct, consider splitting its fields into two structs.
+- Don't try to get around the borrow checker with `unsafe`. A safe restructuring almost always exists.
+'''
+example = '''
+struct Inventory {
+    items: Vec<String>,
+    log: Vec<String>,
+}
+
+impl Inventory {
+    fn log_all(&mut self) {
+        // Writing self.record(item) here would give E0502; we access the fields directly instead.
+        for item in &self.items {
+            self.log.push(format!("saw:{}", item));
+        }
+    }
+}
+
+fn transfer(v: &mut [i32], from: usize, to: usize, amount: i32) {
+    v[from] -= amount;
+    v[to] += amount;
+}
+
+fn main() {
+    let mut inv = Inventory { items: vec![String::from("pen")], log: Vec::new() };
+    inv.log_all();
+    println!("{:?}", inv.log);
+
+    let mut v = [10, 0];
+    transfer(&mut v, 0, 1, 4);
+    println!("{:?}", v);
+
+    let (a, b) = v.split_at_mut(1);
+    a[0] += b[0];
+    println!("{:?}", v);
+}
+'''
+
+[exercise]
+prompt = "There are three parts; the code compiles but works wrongly or is incomplete. (1) `log_all`: for every item in `items`, push `\"saw:<item>\"` onto `log` (`\"saw:ab\"` for `\"ab\"`). If you try to do this with a helper method that takes `&mut self` you get E0502; use the `self.items` and `self.log` fields directly in the loop. (2) `upcase_longest`: turn the longest item into upper case; if several have the same length, the first of them. Do nothing if the list is empty. Don't hold a reference to the item: get the index from the provided `longest_index()`, then change `self.items[i]`. (3) `transfer`: subtract `amount` from `v[from]` and add it to `v[to]`. Instead of taking two `&mut` (E0499), write the two steps one after the other. Example: with `[10, 0, 5]`, `transfer(&mut v, 0, 1, 4)` → `[6, 4, 5]`."
+starter = '''
+pub struct Inventory {
+    pub items: Vec<String>,
+    pub log: Vec<String>,
+}
+
+impl Inventory {
+    pub fn longest_index(&self) -> Option<usize> {
+        let mut best: Option<usize> = None;
+        for (i, s) in self.items.iter().enumerate() {
+            match best {
+                Some(b) if self.items[b].len() >= s.len() => {}
+                _ => best = Some(i),
+            }
+        }
+        best
+    }
+
+    pub fn log_all(&mut self) {
+        // Buggy version: it does not record the item name.
+        for _ in &self.items {
+            self.log.push(String::from("saw:"));
+        }
+    }
+
+    pub fn upcase_longest(&mut self) {
+        todo!()
+    }
+}
+
+pub fn transfer(v: &mut [i32], from: usize, to: usize, amount: i32) {
+    // Buggy version: adding to the target was forgotten.
+    v[from] -= amount;
+}
+'''

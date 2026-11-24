@@ -1,0 +1,116 @@
+title = "HashMap: Finding by Key"
+body_md = '''
+## Why
+
+You have names and scores, and you want to ask "what is Alice's score?".
+If you keep them in a `Vec`, every question means scanning the list from
+start to end. `HashMap<K, V>` is made for exactly this: it stores each
+value together with a key, and when you give it the key it finds the value
+right away. Whether it holds ten entries or ten thousand, a lookup takes
+about the same time. Think of a phone book: the name is the key, the
+number is the value.
+
+## How
+
+Unlike `Vec`, `HashMap` isn't available automatically; you have to write
+`use std::collections::HashMap;` at the top of the file.
+
+```rust
+use std::collections::HashMap;
+
+let mut ages: HashMap<String, u32> = HashMap::new();
+ages.insert("Alice".to_string(), 30);
+ages.insert("Bob".to_string(), 25);
+
+if let Some(age) = ages.get("Alice") {
+    println!("{}", age);
+}
+for (name, age) in ages.iter() {
+    println!("{} -> {}", name, age);
+}
+```
+
+- `insert(key, value)` adds an entry.
+- `get` returns an `Option<&V>`: `Some(&value)` if the key is there,
+  `None` if it isn't.
+- `contains_key` checks whether a key exists. `remove` deletes the entry
+  and gives you the value as an `Option<V>`.
+- `len()` and `is_empty()` work here too.
+
+When you want to count or accumulate something, use `entry`:
+
+```rust
+let mut counts: HashMap<String, usize> = HashMap::new();
+for w in "a b a".split_whitespace() {
+    *counts.entry(w.to_string()).or_insert(0) += 1;
+}
+// counts: "a" -> 2, "b" -> 1
+```
+
+`split_whitespace()` splits the text at whitespace and gives you the words
+one by one. `entry(k).or_insert(0)` does this: if the key is missing, it
+inserts it with the value `0`; if the key is already there, it inserts
+nothing. Either way it gives you a `&mut` reference to the value. The `*`
+in front gets you to that value so you can add `1` to it.
+
+## Watch out
+
+- A `HashMap` doesn't keep its entries in any particular order. When you
+  loop over it you can't know what order they'll come in, and insertion
+  order isn't kept either. If you need sorted output, collect the keys into
+  a `Vec` and sort it (the example below does this).
+- If you call `insert` a second time with the same key, the new value
+  replaces the old one. In that case `insert` returns `Some(old_value)`;
+  if the key was new it returns `None`.
+- You can also read with square brackets, `ages["Bob"]`, but the program
+  panics if the key isn't there. When you aren't sure, use `get`.
+- A `String` you pass as a key is moved into the map. You don't need to
+  build a new `String` to look something up; a `&str` like
+  `ages.get("Alice")` is enough.
+'''
+example = '''
+use std::collections::HashMap;
+
+fn main() {
+    let text = "apple pear apple cherry apple pear";
+    let mut counts: HashMap<String, usize> = HashMap::new();
+    for word in text.split_whitespace() {
+        *counts.entry(word.to_string()).or_insert(0) += 1;
+    }
+
+    let mut keys: Vec<&String> = counts.keys().collect();
+    keys.sort();
+    for k in keys {
+        println!("{}: {}", k, counts[k]);
+    }
+
+    println!("is there a cherry? {}", counts.contains_key("cherry"));
+    println!("banana: {:?}", counts.get("banana"));
+}
+'''
+
+[exercise]
+prompt = '''Write `word_count(text: &str) -> HashMap<String, usize>`. Split the text into words at whitespace, turn each word into lowercase, and count how many times each word appears. Example: `"Rust rust RUST"` gives a single entry: `"rust"` → 3. `"a b a"` gives `"a"` → 2, `"b"` → 1. For empty text, return an empty map. Hint: `w.to_lowercase()` gives you the lowercase version of the word as a new `String` (the opposite of `to_uppercase()`).'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn counts_words() {
+        let got = word_count("a b a");
+        assert_eq!(got.len(), 2);
+        assert_eq!(got["a"], 2);
+        assert_eq!(got["b"], 1);
+    }
+    #[test]
+    fn lowercases_words() {
+        let got = word_count("Rust rust RUST");
+        assert_eq!(got.len(), 1);
+        assert_eq!(got["rust"], 3);
+    }
+    #[test]
+    fn empty_text() {
+        assert!(word_count("").is_empty());
+    }
+}
+'''

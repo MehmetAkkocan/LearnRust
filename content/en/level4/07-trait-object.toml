@@ -1,0 +1,177 @@
+title = "Trait Objects: Box<dyn Trait>"
+body_md = '''
+## Why
+
+All the elements of a `Vec<T>` have the same type: either they're all
+`Dog` or they're all `Cat`. Generics don't change that; each time you use
+it, `T` stands for one single type. So what if you want to keep dogs and
+cats in the same list and then tell each of them, in turn, to "make a
+sound"? For that you use a trait object. `dyn Animal` means "any type that
+implements the `Animal` trait". You put different types into the list, and
+which type's `speak` method runs is worked out while the program is
+running, by looking at the element at hand. This is called dynamic
+dispatch.
+
+## How
+
+A `Dog` and a `Cat` can take up different amounts of memory, so the
+compiler can't know how many bytes a value written as `dyn Animal` needs.
+That's why you always use `dyn Animal` behind a pointer: `Box<dyn Animal>`
+when you own the value, `&dyn Animal` when you borrow it. `Box::new(x)`
+puts the value on the heap and gives you a pointer to it that always has
+the same size. (Level 5 covers `Box` in detail.)
+
+```rust
+trait Animal {
+    fn speak(&self) -> String;
+}
+
+struct Dog;
+struct Cat;
+
+impl Animal for Dog {
+    fn speak(&self) -> String { "woof".to_string() }
+}
+impl Animal for Cat {
+    fn speak(&self) -> String { "meow".to_string() }
+}
+
+let zoo: Vec<Box<dyn Animal>> = vec![Box::new(Dog), Box::new(Cat)];
+for a in zoo.iter() {
+    println!("{}", a.speak());   // woof first, then meow
+}
+```
+
+- Because you wrote the list's type as `Vec<Box<dyn Animal>>`,
+  `Box::new(Dog)` turns into a `Box<dyn Animal>` on its own.
+- When a function returns different types depending on the situation, you
+  make its return type `Box<dyn Animal>`.
+- A function that reads such a list takes the parameter as
+  `&[Box<dyn Animal>]`.
+- `Box<dyn Error>` from the error lesson was a trait object too: it
+  gathers different error types into one return type.
+
+## Watch out
+
+- Not every trait can be used with `dyn`. If the trait has a method that
+  returns `Self` or has a generic parameter of its own, the compiler says
+  `the trait is not dyn compatible` (older versions say `cannot be made
+  into an object`).
+- Dynamic dispatch has a small cost: on every call the right method is
+  looked up in a table. If you know the type at compile time, generics or
+  `impl Trait` are faster. Use `dyn` when you need to keep different types
+  together.
+- You have to write the word `dyn`. `Box<Animal>` is an old spelling; it
+  doesn't compile in the 2021 edition.
+'''
+example = '''
+trait Animal {
+    fn speak(&self) -> String;
+}
+
+struct Dog;
+struct Cat;
+
+impl Animal for Dog {
+    fn speak(&self) -> String {
+        "woof".to_string()
+    }
+}
+
+impl Animal for Cat {
+    fn speak(&self) -> String {
+        "meow".to_string()
+    }
+}
+
+fn make(kind: &str) -> Box<dyn Animal> {
+    if kind == "dog" {
+        Box::new(Dog)
+    } else {
+        Box::new(Cat)
+    }
+}
+
+fn main() {
+    let zoo: Vec<Box<dyn Animal>> = vec![make("dog"), make("cat"), Box::new(Dog)];
+    for a in zoo.iter() {
+        println!("{}", a.speak());
+    }
+}
+'''
+
+[exercise]
+prompt = '''Write `chorus(animals: &[Box<dyn Animal>]) -> String`. Take the `speak()` output of each animal in the list, in order, and join them into a single `String` with `", "` (a comma and a space) between them; don't leave an extra separator at the end. Example: dog, cat, dog → `"woof, meow, woof"`; just a cat → `"meow"`; empty list → `""`. Hint: `for (i, a) in animals.iter().enumerate()` gives you the position as well; when `i > 0`, add the separator first.'''
+starter = '''
+trait Animal {
+    fn speak(&self) -> String;
+}
+
+struct Dog;
+struct Cat;
+
+impl Animal for Dog {
+    fn speak(&self) -> String {
+        "woof".to_string()
+    }
+}
+
+impl Animal for Cat {
+    fn speak(&self) -> String {
+        "meow".to_string()
+    }
+}
+
+fn chorus(animals: &[Box<dyn Animal>]) -> String {
+    todo!()
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn chorus_of_three() {
+        let v: Vec<Box<dyn Animal>> = vec![Box::new(Dog), Box::new(Cat), Box::new(Dog)];
+        assert_eq!(chorus(&v), "woof, meow, woof");
+    }
+    #[test]
+    fn single_and_empty() {
+        let one: Vec<Box<dyn Animal>> = vec![Box::new(Cat)];
+        assert_eq!(chorus(&one), "meow");
+        let none: Vec<Box<dyn Animal>> = Vec::new();
+        assert_eq!(chorus(&none), "");
+    }
+}
+'''
+solution = '''
+trait Animal {
+    fn speak(&self) -> String;
+}
+
+struct Dog;
+struct Cat;
+
+impl Animal for Dog {
+    fn speak(&self) -> String {
+        "woof".to_string()
+    }
+}
+
+impl Animal for Cat {
+    fn speak(&self) -> String {
+        "meow".to_string()
+    }
+}
+
+fn chorus(animals: &[Box<dyn Animal>]) -> String {
+    let mut out = String::new();
+    for (i, a) in animals.iter().enumerate() {
+        if i > 0 {
+            out.push_str(", ");
+        }
+        out.push_str(&a.speak());
+    }
+    out
+}
+'''

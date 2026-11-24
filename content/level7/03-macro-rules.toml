@@ -1,0 +1,107 @@
+id = "7-03"
+title = "Declarative Macro: macro_rules!"
+read_points = 10
+body_md = '''
+## Neden
+
+Fonksiyon değer alır, değer döndürür. Macro ise kod alır ve onun yerine yeni kod yazar; bu iş derleme sırasında olur. `vec![1, 2, 3]` ya da `println!` gibi istediğin kadar argüman alan şeyleri fonksiyonla yazamazsın, macro ile yazarsın. Aynı kalıbı tekrar tekrar yazdığın yerleri kısaltmak için de işe yarar. Kendi macro'nu `macro_rules!` ile tanımlarsın. Bu türe declarative macro denir: girdinin neye benzediğini desenlerle tarif edersin, her desenin karşısına da üretilecek kodu yazarsın.
+
+## Nasıl
+
+Bir macro, `(desen) => { üretilecek kod }` biçiminde kollardan oluşur. Desende `$ad:tür` yazarak girdinin bir parçasını yakalarsın. En çok kullanacağın türler: `expr` (ifade), `ident` (isim), `ty` (tip), `tt` (tek bir token ya da parantez içindeki bir grup).
+
+```rust
+macro_rules! square {
+    ($x:expr) => { $x * $x };
+}
+```
+
+`square!(4)` yazdığın yere `4 * 4` gelir.
+
+Birden çok argüman için tekrar kullanırsın: `$( ... ),*` "virgülle ayrılmış sıfır ya da daha fazla", `$( ... ),+` "en az bir" demektir. Üretilen kodda aynı `$( ... )` yazımı, yakalanan her parça için içindekini bir kez tekrarlar:
+
+```rust
+macro_rules! product {
+    () => { 1 };
+    ($($x:expr),+ $(,)?) => { 1 $(* $x)+ };
+}
+```
+
+`product!(2, 3, 4)` yazdığın yere `1 * 2 * 3 * 4` gelir.
+
+- Kollar yukarıdan aşağıya denenir; ilk uyan kullanılır.
+- `$(,)?` sondaki virgüle izin verir: `product!(2, 3,)`.
+- Tekrarın içine tam bir satır da koyabilirsin: `$( v.push($x); )*` her argüman için bir `push` üretir.
+- Macro kendini daha kısa bir girdiyle yeniden çağırabilir.
+- Macro'yu, kullandığın yerden önce tanımlaman gerekir.
+
+## Dikkat
+
+- `$x:expr` ifadeyi bütün olarak tutar. `square!(2 + 1)`, `(2 + 1) * (2 + 1)` gibi davranır ve 9 verir; 5 değil.
+- `$x`'i iki kez yazarsan ifade iki kez çalışır. Önce bir değişkene al: `let a = $x;`.
+- Birden fazla satır üretiyorsan çift süslü parantez kullan: `=> {{ ... }}`. Dıştaki macro'nun kendi parantezidir, içteki bir blok açar. O blokta tanımladığın değişkenler dışarıdaki isimlerle karışmaz.
+- Macro hataları fonksiyon hatalarından zor okunur. İşi bir fonksiyon görüyorsa macro yazma.
+- Macro'nun ürettiği kodu görmek istersen `cargo expand` aracına bak (ayrıca kurulur).
+'''
+example = '''
+macro_rules! square {
+    ($x:expr) => {
+        $x * $x
+    };
+}
+
+macro_rules! max_of {
+    ($x:expr) => { $x };
+    ($x:expr, $($rest:expr),+) => {{
+        let a = $x;
+        let b = max_of!($($rest),+);
+        if a > b { a } else { b }
+    }};
+}
+
+fn main() {
+    println!("{}", square!(4));
+    println!("{}", square!(2 + 1));
+    println!("{}", max_of!(3, 9, 5));
+}
+'''
+
+[exercise]
+prompt = "`sum!` macro'su verdiğin sayıları toplamalı: `sum!()` → `0`, `sum!(1, 2, 3)` → `6`, `sum!(1 + 1, 2 * 3,)` → `8` (sondaki virgül serbest). Desenler hazır ve doğru; ama ikinci kol şu an ne verirsen ver `0` üretiyor. O kolun ürettiği kodu düzelt: yakalanan her `$x` toplama eklensin."
+starter = '''
+macro_rules! sum {
+    () => { 0 };
+    ($($x:expr),+ $(,)?) => { 0 };
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn empty_is_zero() {
+        let z: i32 = sum!();
+        assert_eq!(z, 0);
+    }
+    #[test]
+    fn adds_arguments() {
+        assert_eq!(sum!(1, 2, 3), 6);
+        assert_eq!(sum!(10), 10);
+    }
+    #[test]
+    fn trailing_comma_and_exprs() {
+        assert_eq!(sum!(1 + 1, 2 * 3,), 8);
+        let a = 4;
+        let b = 5;
+        let total: i64 = sum!(a as i64, b as i64);
+        assert_eq!(total, 9);
+    }
+}
+'''
+solution = '''
+macro_rules! sum {
+    () => { 0 };
+    ($($x:expr),+ $(,)?) => { 0 $(+ $x)+ };
+}
+'''
+points = 30

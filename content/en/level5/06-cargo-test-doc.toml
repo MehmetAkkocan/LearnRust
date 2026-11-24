@@ -1,0 +1,145 @@
+title = "Tests and Docs: cargo test, cargo doc"
+body_md = '''
+## Why
+
+How do you know your code works? Trying it by hand after every change is
+tiring, and one day you will forget. A test turns that check into code:
+write it once, then rerun everything with one command. Rust needs nothing
+extra for this; the test tool and the documentation tool both come with
+`cargo`.
+
+## How
+
+Tests usually live in the same file as the code they check, in a separate
+module:
+
+```rust
+pub fn add(a: i32, b: i32) -> i32 {
+    a + b
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn adds() {
+        assert_eq!(add(2, 3), 5);
+    }
+}
+```
+
+- `#[cfg(test)]`: this module is compiled only when testing; it stays out
+  of the normal program.
+- `use super::*;`: brings in everything from the parent module, so you
+  can write `add` directly.
+- `#[test]`: marks the function as a test. If it finishes without a
+  panic, the test passes.
+
+Three macros do the checking: `assert!(condition)`,
+`assert_eq!(a, b)` (must be equal), `assert_ne!(a, b)` (must differ). If
+the expectation does not hold, the macro panics and the test fails.
+
+`cargo test` runs all the tests. `cargo test adds` runs only the ones
+with `adds` in their name.
+
+A doc comment starts with `///` and describes the item below it.
+`cargo doc --open` builds an HTML page from these comments and opens it
+in your browser. A code block inside the comment is also a test (a doc
+test): `cargo test` compiles and runs it, so you find out when an example
+in the docs goes stale.
+
+```rust
+/// Adds two numbers.
+///
+/// ```
+/// assert_eq!(mycrate::add(1, 2), 3);
+/// ```
+pub fn add(a: i32, b: i32) -> i32 { a + b }
+```
+
+## Watch out
+
+- Without `#[test]` the function is not a test and never runs. Watch the
+  test count in the output.
+- A doc test is compiled as if someone were using your crate from the
+  outside. So you call the function with the crate name (`mycrate::add`)
+  and the function must be `pub`. Doc tests run only in library crates.
+- Tests run at the same time and in no fixed order. Tests that write to
+  the same file or rely on a shared variable break each other.
+- If you expect a function to panic, add `#[should_panic]` to the test;
+  it then passes only if a panic happens.
+'''
+example = '''
+/// Clamps a percentage to the range 0 to 100.
+///
+/// # Example
+/// ```
+/// assert_eq!(mycrate::clamp_percent(150), 100);
+/// ```
+pub fn clamp_percent(v: i32) -> i32 {
+    v.max(0).min(100)
+}
+
+fn main() {
+    println!("{}", clamp_percent(-20));
+    println!("{}", clamp_percent(55));
+    println!("{}", clamp_percent(150));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn clamps_both_ends() {
+        assert_eq!(clamp_percent(-5), 0);
+        assert_eq!(clamp_percent(150), 100);
+        assert_eq!(clamp_percent(50), 50);
+    }
+}
+'''
+
+[exercise]
+prompt = "The two functions below compile but give wrong results; fix both. `clamp_percent(v)` must pull the value into the range 0 to 100: `0` if it is below 0, `100` if it is above 100, and the value itself if it is in between. Example: `-5` → `0`, `150` → `100`, `50` → `50`. Right now it returns negative numbers unchanged. `is_even(n)` must return `true` when the number is even; right now it does the exact opposite. Hint: `a.max(b)` gives the larger of two numbers and `a.min(b)` the smaller. For negative odd numbers, `n % 2` is `-1`."
+starter = '''
+/// Clamps a percentage to the range 0 to 100.
+fn clamp_percent(v: i32) -> i32 {
+    v.min(100)
+}
+
+/// Returns true if the number is even.
+fn is_even(n: i32) -> bool {
+    n % 2 == 1
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn clamping() {
+        assert_eq!(clamp_percent(-5), 0);
+        assert_eq!(clamp_percent(150), 100);
+        assert_eq!(clamp_percent(50), 50);
+    }
+    #[test]
+    fn evenness() {
+        assert!(is_even(4));
+        assert!(is_even(0));
+        assert!(!is_even(7));
+        assert!(!is_even(-3));
+    }
+}
+'''
+solution = '''
+/// Clamps a percentage to the range 0 to 100.
+fn clamp_percent(v: i32) -> i32 {
+    v.max(0).min(100)
+}
+
+/// Returns true if the number is even.
+fn is_even(n: i32) -> bool {
+    n % 2 == 0
+}
+'''

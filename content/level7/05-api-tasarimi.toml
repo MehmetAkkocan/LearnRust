@@ -1,0 +1,231 @@
+id = "7-05"
+title = "API Tasarımı: Builder, Newtype, From/Into, Default"
+read_points = 10
+body_md = '''
+## Neden
+
+Yazdığın fonksiyonları ve tipleri başkası kullanacak; belki de altı ay sonraki sen. İyi bir API'de doğru kullanım kolaydır, yanlış kullanım ise derlenmez. Rust'ta bunun için dört küçük araç çok iş görür: newtype, `From`/`Into`, `Default` ve builder.
+
+## Nasıl
+
+**Newtype.** Var olan bir tipi tek alanlı bir struct'la sarıp ona yeni bir ad verirsin. İkisi de `f64` olan metre ile feet artık birbirinin yerine geçemez; karıştırırsan derleyici durdurur.
+
+```rust
+struct Meters(f64);
+struct Feet(f64);
+```
+
+**From/Into.** Bir tipten ötekine dönüşümü tek yerde yazarsın. `impl From<Feet> for Meters` yazdığında `feet.into()` da kendiliğinden çalışır. Parametreyi `impl Into<Meters>` yaparsan çağıran ister `Meters` verir ister `Feet`.
+
+```rust
+impl From<Feet> for Meters {
+    fn from(f: Feet) -> Meters { Meters(f.0 * 0.3048) }
+}
+fn walk(d: impl Into<Meters>) -> Meters { d.into() }
+```
+
+**Default.** `impl Default` ile tipin "bir şey söylenmezse" alacağı değerleri belirlersin. Sonra yalnızca farklı olan alanı yazman yeter: `Request { retries: 5, ..Default::default() }`.
+
+**Builder.** Alanı çok olan bir struct'ı adım adım kuran yardımcı tiptir. `new()` varsayılan değerlerle başlar. Her ayar metodu `mut self` alır, bir alanı değiştirir ve `Self` döndürür; böylece çağrıları art arda ekleyebilirsin. En sonda `build()` asıl değeri verir:
+
+```rust
+let req = RequestBuilder::new().url("https://example.com").retries(5).build();
+```
+
+Geçersiz bir ayar yapılabiliyorsa `build()` `Result` döndürsün.
+
+## Dikkat
+
+- Her struct'a builder yazma. İki üç alan için düz bir `new` fonksiyonu yeter.
+- `From` hiç başarısız olmayan dönüşümler içindir. Dönüşüm hata verebiliyorsa `TryFrom` kullan.
+- `impl Into<..>` parametreli fonksiyon generic'tir: derleyici, çağrıldığı her tip için ayrı bir kopya üretir. Her parametreye koyma; çağıranın işini gerçekten kolaylaştırdığı yerde kullan.
+- Alanları gerekmedikçe `pub` yapma. Bütün alanları `pub` olan bir struct'a sonradan alan eklersen, onu `Config { .. }` diye elle kuran herkesin kodu derlenmez olur.
+- Yayınladığın bir API'yi sonradan değiştirmek pahalıdır. Adları ve tipleri baştan düşün.
+'''
+example = '''
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct Meters(f64);
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct Feet(f64);
+
+impl From<Feet> for Meters {
+    fn from(f: Feet) -> Meters {
+        Meters(f.0 * 0.3048)
+    }
+}
+
+fn walk(d: impl Into<Meters>) -> Meters {
+    d.into()
+}
+
+#[derive(Debug)]
+struct Request {
+    url: String,
+    timeout_secs: u32,
+    retries: u32,
+}
+
+impl Default for Request {
+    fn default() -> Self {
+        Request { url: String::from("http://localhost"), timeout_secs: 30, retries: 3 }
+    }
+}
+
+struct RequestBuilder {
+    req: Request,
+}
+
+impl RequestBuilder {
+    fn new() -> Self {
+        RequestBuilder { req: Request::default() }
+    }
+    fn url(mut self, url: &str) -> Self {
+        self.req.url = url.to_string();
+        self
+    }
+    fn retries(mut self, n: u32) -> Self {
+        self.req.retries = n;
+        self
+    }
+    fn build(self) -> Request {
+        self.req
+    }
+}
+
+fn main() {
+    println!("{:?}", walk(Meters(10.0)));
+    println!("{:?}", walk(Feet(100.0)));
+    let req = RequestBuilder::new().url("https://example.com").retries(5).build();
+    println!("{:?}", req);
+    println!("{}", req.timeout_secs);
+}
+'''
+
+[exercise]
+prompt = "Bir ayar API'sini tamamla: `todo!()` olan her yeri doldur. (1) `Port::from(80u16)` → `Port(80)`. (2) `Config::default()`: `host` `\"localhost\"`, `port` `Port(8080)`, `retries` `3`. (3) `ConfigBuilder::new()` varsayılan `Config` ile başlar. `host`, `port` ve `retries` metotları kendi alanını değiştirip builder'ı geri döndürür; `port` hem `u16` hem `Port` kabul eder (`impl Into<Port>`; içeride `.into()` çağır). `build()` hazırlanan `Config`'i verir. Örnek: `ConfigBuilder::new().host(\"example.com\").port(443u16).retries(5).build()`."
+starter = '''
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Port(pub u16);
+
+impl From<u16> for Port {
+    fn from(p: u16) -> Self {
+        todo!()
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Config {
+    pub host: String,
+    pub port: Port,
+    pub retries: u32,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        todo!()
+    }
+}
+
+pub struct ConfigBuilder {
+    config: Config,
+}
+
+impl ConfigBuilder {
+    pub fn new() -> Self {
+        todo!()
+    }
+    pub fn host(mut self, host: &str) -> Self {
+        todo!()
+    }
+    pub fn port(mut self, port: impl Into<Port>) -> Self {
+        todo!()
+    }
+    pub fn retries(mut self, retries: u32) -> Self {
+        todo!()
+    }
+    pub fn build(self) -> Config {
+        todo!()
+    }
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn port_from_u16() {
+        assert_eq!(Port::from(80u16), Port(80));
+    }
+    #[test]
+    fn default_values() {
+        let c = Config::default();
+        assert_eq!(c.host, "localhost");
+        assert_eq!(c.port, Port(8080));
+        assert_eq!(c.retries, 3);
+    }
+    #[test]
+    fn builder_defaults_match() {
+        assert_eq!(ConfigBuilder::new().build(), Config::default());
+    }
+    #[test]
+    fn builder_chain() {
+        let c = ConfigBuilder::new().host("example.com").port(443u16).retries(5).build();
+        assert_eq!(c.host, "example.com");
+        assert_eq!(c.port, Port(443));
+        assert_eq!(c.retries, 5);
+        let d = ConfigBuilder::new().port(Port(1)).build();
+        assert_eq!(d.port, Port(1));
+        assert_eq!(d.host, "localhost");
+    }
+}
+'''
+solution = '''
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Port(pub u16);
+
+impl From<u16> for Port {
+    fn from(p: u16) -> Self {
+        Port(p)
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Config {
+    pub host: String,
+    pub port: Port,
+    pub retries: u32,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Config { host: String::from("localhost"), port: Port(8080), retries: 3 }
+    }
+}
+
+pub struct ConfigBuilder {
+    config: Config,
+}
+
+impl ConfigBuilder {
+    pub fn new() -> Self {
+        ConfigBuilder { config: Config::default() }
+    }
+    pub fn host(mut self, host: &str) -> Self {
+        self.config.host = host.to_string();
+        self
+    }
+    pub fn port(mut self, port: impl Into<Port>) -> Self {
+        self.config.port = port.into();
+        self
+    }
+    pub fn retries(mut self, retries: u32) -> Self {
+        self.config.retries = retries;
+        self
+    }
+    pub fn build(self) -> Config {
+        self.config
+    }
+}
+'''
+points = 30

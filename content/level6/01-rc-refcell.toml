@@ -1,0 +1,119 @@
+id = "6-01"
+title = "Rc ve RefCell: Bir Değere Birden Çok Sahip"
+read_points = 10
+body_md = '''
+## Neden
+
+Şimdiye kadar her değerin tek bir sahibi vardı. Çoğu zaman bu yeter.
+Ama bazen aynı değeri programın birkaç yeri birlikte tutmak ister: aynı
+ayarları kullanan iki nesne ya da birkaç komşusu olan bir graf düğümü
+gibi. Hangisinin daha uzun yaşayacağını önceden bilemezsin, o yüzden
+içlerinden birini "tek sahip" seçemezsin.
+
+`Rc<T>` (reference counted) bunu çözer: değerin kaç sahibi olduğunu
+sayar, son sahip de gidince değeri siler (drop). Yalnız `Rc`, içindeki
+değeri sadece okutur. Değiştirmek de istiyorsan içine bir `RefCell<T>`
+koyarsın.
+
+## Nasıl
+
+`Rc::new(x)` değeri sarar. `Rc::clone(&a)` veriyi kopyalamaz; aynı
+değere yeni bir sahip ekler ve sayacı 1 artırır.
+
+`RefCell<T>` borrow kurallarını kaldırmaz; denetimi derleme zamanından
+çalışma zamanına taşır. Buna interior mutability denir: elindeki
+referans değiştirilebilir olmasa bile içteki değeri değiştirebilirsin.
+
+```rust
+use std::cell::RefCell;
+use std::rc::Rc;
+
+let shared = Rc::new(RefCell::new(0));
+let other = Rc::clone(&shared);
+*other.borrow_mut() += 5;
+assert_eq!(*shared.borrow(), 5);
+assert_eq!(Rc::strong_count(&shared), 2);
+```
+
+- `borrow()` okumak için, `borrow_mut()` değiştirmek için erişim verir.
+- Kural bildiğin kural: aynı anda ya istediğin kadar okuyan ya da tek
+  bir değiştiren olabilir.
+- `Rc::strong_count(&a)` o anda kaç sahip olduğunu söyler.
+- İkisi çoğunlukla birlikte, `Rc<RefCell<T>>` olarak kullanılır.
+
+## Dikkat
+
+- Kuralı çiğnersen derleyici bir şey demez; program çalışırken panic
+  olur. Örneğin bir `borrow_mut()` hâlâ kullanımdayken ikinci kez
+  `borrow_mut()` ya da `borrow()` çağırırsan program orada durur.
+  `borrow_mut()`'tan aldığın şeyi bir değişkende uzun süre tutma; işini
+  tek satırda ya da küçük bir blokta bitir.
+- `Rc`'yi, programın içinde aynı anda çalışan başka bir thread'e
+  gönderemezsin; sayacı buna göre yapılmamıştır. Thread'ler arasında
+  paylaşmak için bir sonraki derste `Arc`'ı göreceksin.
+- İki `Rc` birbirini gösterirse (döngü) sayaç hiç sıfıra inmez ve
+  değerler hiç silinmez; bellek sızar.
+- `Rc<RefCell<T>>` ilk başvurduğun şey olmasın. Önce normal ownership
+  ve referanslarla çözmeyi dene.
+'''
+example = '''
+use std::cell::RefCell;
+use std::rc::Rc;
+
+fn main() {
+    let shared = Rc::new(RefCell::new(vec![1, 2, 3]));
+    let other = Rc::clone(&shared);
+    other.borrow_mut().push(4);
+    shared.borrow_mut().push(5);
+    println!(
+        "liste: {:?}, sahip sayısı: {}",
+        shared.borrow(),
+        Rc::strong_count(&shared)
+    );
+}
+'''
+
+[exercise]
+prompt = "İki fonksiyon yaz. `make_shared(v)` bir `i32` alır, onu `Rc<RefCell<i32>>` içine koyup döndürür. `add_one(c)` böyle bir değere referans alır ve içindeki sayıyı 1 artırır; bir şey döndürmez. Örnek: `make_shared(5)` ile başlayıp `add_one`'ı iki kez çağırırsan içteki sayı 7 olur."
+starter = '''
+use std::cell::RefCell;
+use std::rc::Rc;
+
+pub fn make_shared(v: i32) -> Rc<RefCell<i32>> {
+    todo!()
+}
+
+pub fn add_one(c: &Rc<RefCell<i32>>) {
+    todo!()
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn paylasilan_sayac() {
+        let a = make_shared(5);
+        let b = Rc::clone(&a);
+        add_one(&a);
+        add_one(&b);
+        assert_eq!(*a.borrow(), 7);
+        assert_eq!(*b.borrow(), 7);
+        assert_eq!(Rc::strong_count(&a), 2);
+    }
+}
+'''
+solution = '''
+use std::cell::RefCell;
+use std::rc::Rc;
+
+pub fn make_shared(v: i32) -> Rc<RefCell<i32>> {
+    Rc::new(RefCell::new(v))
+}
+
+pub fn add_one(c: &Rc<RefCell<i32>>) {
+    *c.borrow_mut() += 1;
+}
+'''
+points = 30

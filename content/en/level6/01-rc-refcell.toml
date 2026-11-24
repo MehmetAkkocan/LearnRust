@@ -1,0 +1,93 @@
+title = "Rc and RefCell: One Value, Several Owners"
+body_md = '''
+## Why
+
+So far every value has had exactly one owner. Most of the time that is
+enough. But sometimes several parts of a program need to hold on to the
+same value: two objects that use the same settings, or a graph node with
+several neighbours. You can't tell in advance which of them will live
+longest, so you can't pick one of them as "the" owner.
+
+`Rc<T>` (reference counted) solves this. It counts how many owners the
+value has and drops the value when the last owner goes away. But an `Rc`
+only lets you read what is inside it. If you also want to change the
+value, you put a `RefCell<T>` inside.
+
+## How
+
+`Rc::new(x)` wraps a value. `Rc::clone(&a)` does not copy the data; it
+adds one more owner of the same value and raises the count by 1.
+
+`RefCell<T>` does not remove the borrow rules; it moves the check from
+compile time to run time. This is called interior mutability: you can
+change the inner value even though the reference you hold is not
+mutable.
+
+```rust
+use std::cell::RefCell;
+use std::rc::Rc;
+
+let shared = Rc::new(RefCell::new(0));
+let other = Rc::clone(&shared);
+*other.borrow_mut() += 5;
+assert_eq!(*shared.borrow(), 5);
+assert_eq!(Rc::strong_count(&shared), 2);
+```
+
+- `borrow()` gives you access for reading, `borrow_mut()` for changing.
+- The rule is the one you already know: at any moment there can be
+  either any number of readers or exactly one writer.
+- `Rc::strong_count(&a)` tells you how many owners there are right now.
+- The two are mostly used together, as `Rc<RefCell<T>>`.
+
+## Watch out
+
+- If you break the rule, the compiler says nothing; the program panics
+  while it runs. For example, if you call `borrow_mut()` or `borrow()`
+  while an earlier `borrow_mut()` is still in use, the program stops
+  right there. Don't keep what `borrow_mut()` gives you in a variable
+  for long; finish the job in one line or in a small block.
+- You can't send an `Rc` to another thread that runs at the same time
+  inside your program; its counter isn't built for that. For sharing
+  between threads you will meet `Arc` in the next lesson.
+- If two `Rc`s point at each other (a cycle), the count never drops to
+  zero and the values are never dropped; the memory leaks.
+- Don't make `Rc<RefCell<T>>` the first thing you reach for. Try to
+  solve the problem with plain ownership and references first.
+'''
+example = '''
+use std::cell::RefCell;
+use std::rc::Rc;
+
+fn main() {
+    let shared = Rc::new(RefCell::new(vec![1, 2, 3]));
+    let other = Rc::clone(&shared);
+    other.borrow_mut().push(4);
+    shared.borrow_mut().push(5);
+    println!(
+        "list: {:?}, owner count: {}",
+        shared.borrow(),
+        Rc::strong_count(&shared)
+    );
+}
+'''
+
+[exercise]
+prompt = "Write two functions. `make_shared(v)` takes an `i32`, puts it inside an `Rc<RefCell<i32>>` and returns it. `add_one(c)` takes a reference to such a value and adds 1 to the number inside; it returns nothing. Example: if you start with `make_shared(5)` and call `add_one` twice, the number inside is 7."
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn shared_counter() {
+        let a = make_shared(5);
+        let b = Rc::clone(&a);
+        add_one(&a);
+        add_one(&b);
+        assert_eq!(*a.borrow(), 7);
+        assert_eq!(*b.borrow(), 7);
+        assert_eq!(Rc::strong_count(&a), 2);
+    }
+}
+'''

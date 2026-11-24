@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="panel">
+  <h1>{{ t.panel_heading }}</h1>
+  <div class="summary">
+    <div class="summary-points">{{ t.total_points }}: <strong>{{ stats.points }}</strong> / {{ stats.max }}</div>
+  </div>
+  <h2>{{ t.badges }}</h2>
+  {% if badges.is_empty() %}<p class="muted">{{ t.no_badges }}</p>{% else %}
+  {% include "badges.html" %}
+  {% endif %}
+  <h2>{{ t.levels }}</h2>
+  <div class="level-grid">
+  {% for c in cards %}
+    {% if c.locked %}
+    <div class="level-card locked">
+      <h3>{{ t.level }} {{ c.id }}: {{ c.title }} <span class="status">{{ c.status_label }}</span></h3>
+      <p>{{ c.description }}</p>
+      <div class="progress-bar"><div class="progress-fill" style="width: {{ c.percent }}%"></div></div>
+      <p class="level-meta">{{ c.meta }}</p>
+      <p class="unlock-info">{{ c.unlock_info }}</p>
+    </div>
+    {% else %}
+    <a class="level-card {{ c.status_class }}" href="/seviye/{{ c.slug }}">
+      <h3>{{ t.level }} {{ c.id }}: {{ c.title }} <span class="status">{{ c.status_label }}</span></h3>
+      <p>{{ c.description }}</p>
+      <div class="progress-bar"><div class="progress-fill" style="width: {{ c.percent }}%"></div></div>
+      <p class="level-meta">{{ c.meta }}</p>
+    </a>
+    {% endif %}
+  {% endfor %}
+  </div>
+</section>
+{% endblock %}

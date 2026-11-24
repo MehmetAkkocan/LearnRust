@@ -1,0 +1,107 @@
+id = "6-03"
+title = "thread::spawn ve join: Thread Başlatmak"
+read_points = 10
+body_md = '''
+## Neden
+
+Program normalde tek bir thread'de, yani baştan sona tek koldan çalışır.
+Birbirinden bağımsız işlerin varsa bunları ayrı thread'lere
+verebilirsin. Çok çekirdekli bir işlemcide bu işler gerçekten aynı anda
+yürür. Uzun süren bir iş (dosya okumak, ağdan cevap beklemek) de
+diğerlerini bekletmez.
+
+Rust'ın standart kütüphanesindeki `std::thread`, işletim sisteminin
+thread'lerini kullanır. Rust'ın farkı şurada: veriyi thread'ler arasında
+yanlış paylaşırsan hata program çalışırken ortaya çıkmaz, kod daha
+derlenmez.
+
+## Nasıl
+
+`thread::spawn` bir closure alır ve onu yeni bir thread'de çalıştırır.
+Sana bir `JoinHandle<T>` döndürür. Handle üzerinde `join()` çağırınca o
+thread bitene kadar beklersin; closure'ın döndürdüğü değer
+`Result<T, _>` içinde gelir.
+
+```rust
+use std::thread;
+
+let handle = thread::spawn(|| 2 + 3);
+let value = handle.join().unwrap();
+assert_eq!(value, 5);
+```
+
+- Closure dışarıdaki bir değeri kullanacaksa başına `move` yaz. O zaman
+  değer thread'e taşınır (move) ve artık thread'in olur.
+- Birden çok thread açacaksan handle'ları bir `Vec`'te topla, sonra
+  hepsini sırayla `join` et.
+- Hangi thread'in önce biteceği belli değildir. Ama handle'ları açtığın
+  sırayla `join` edersen sonuçları da o sırayla alırsın.
+
+## Dikkat
+
+- `spawn`'a verdiğin closure yerel bir değişkene referans tutamaz.
+  Derleyici closure'ın `'static` olmasını ister, çünkü thread onu
+  başlatan fonksiyondan daha uzun yaşayabilir; o zaman referansın
+  gösterdiği değer çoktan silinmiş olur. Çözüm, `move` yazıp değeri
+  thread'e taşımak.
+- Thread'in içinde panic olursa `join()` `Err` döndürür. `unwrap()`
+  dersen panic ana thread'e geçer.
+- `join` etmediğin thread'i kimse beklemez: `main` bitince program
+  kapanır, o thread de yarıda kesilebilir.
+- Çıktının ekrana hangi sırayla düşeceğine ya da `sleep` ile ayarladığın
+  sürelere güvenme. Sonucu `join`'den sonra kontrol et.
+- Her thread'in bir maliyeti var. Küçücük bir iş için thread açmak, işi
+  doğrudan yapmaktan pahalıya gelir.
+'''
+example = '''
+use std::thread;
+
+fn main() {
+    let numbers = vec![1u64, 2, 3, 4];
+    let handles: Vec<_> = numbers
+        .into_iter()
+        .map(|n| thread::spawn(move || n * 10))
+        .collect();
+
+    let results: Vec<u64> = handles.into_iter().map(|h| h.join().unwrap()).collect();
+    println!("{:?}", results);
+}
+'''
+
+[exercise]
+prompt = "`square_all(nums)` bir `Vec<u64>` alır. Her sayı için ayrı bir thread aç ve sayının karesini o thread'de hesapla. Sonuçları girdiyle aynı sırada bir `Vec<u64>` olarak döndür. Örnek: `[1, 2, 3, 4]` → `[1, 4, 9, 16]`. Boş liste gelirse boş liste döndür."
+starter = '''
+use std::thread;
+
+pub fn square_all(nums: Vec<u64>) -> Vec<u64> {
+    todo!()
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn kareler() {
+        assert_eq!(square_all(vec![1, 2, 3, 4]), vec![1, 4, 9, 16]);
+    }
+
+    #[test]
+    fn bos_liste() {
+        assert_eq!(square_all(Vec::new()), Vec::<u64>::new());
+    }
+}
+'''
+solution = '''
+use std::thread;
+
+pub fn square_all(nums: Vec<u64>) -> Vec<u64> {
+    let handles: Vec<_> = nums
+        .into_iter()
+        .map(|n| thread::spawn(move || n * n))
+        .collect();
+    handles.into_iter().map(|h| h.join().unwrap()).collect()
+}
+'''
+points = 30

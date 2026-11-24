@@ -1,0 +1,294 @@
+/* Rust Öğren — tema. Harici font/CDN yok. Koyu varsayılan, açık: prefers-color-scheme. */
+:root {
+  color-scheme: dark light;
+  --bg: #14161a;
+  --surface: #1e2127;
+  --surface-2: #272b33;
+  --border: #3a3f4a;
+  --text: #e8eaed;
+  --muted: #a6adb9;
+  --accent: #f74c00;
+  --accent-text: #ff9a6b;
+  --accent-soft: #dea584;
+  --on-accent: #1a0b00;
+  --btn-bg: #f74c00;
+  --ok: #4ade80; --ok-bg: #12301f; --ok-border: #2a7a4b;
+  --fail: #ff8a8a; --fail-bg: #3a1618; --fail-border: #a63a3a;
+  --code-bg: #0e1013;
+  --focus: #7cc4ff;
+  --radius: .6rem;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f6f4f1;
+    --surface: #ffffff;
+    --surface-2: #efebe6;
+    --border: #cfc8c0;
+    --text: #1d1b19;
+    --muted: #5a544e;
+    --accent-text: #b33500;
+    --accent-soft: #c07a50;
+    --on-accent: #ffffff;
+    --btn-bg: #b33500;
+    --ok: #0f6b36; --ok-bg: #e4f6ea; --ok-border: #7cc79a;
+    --fail: #a11d1d; --fail-bg: #fde8e8; --fail-border: #e29a9a;
+    --code-bg: #f1ede8;
+    --focus: #0b5cad;
+  }
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.65; font-size: 1rem;
+}
+a { color: var(--accent-text); text-underline-offset: .15em; }
+a:hover { text-decoration-thickness: 2px; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: .25rem; }
+h1, h2, h3 { line-height: 1.25; margin: 1.4em 0 .5em; }
+h1 { font-size: 1.8rem; margin-top: .5em; }
+h2 { font-size: 1.4rem; }
+h3 { font-size: 1.15rem; }
+p, ul, ol { margin: .7em 0; }
+.muted { color: var(--muted); }
+
+/* Üst bar */
+.topbar {
+  display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; align-items: center;
+  padding: .6rem 1rem; background: var(--surface);
+  border-bottom: 3px solid var(--accent); position: sticky; top: 0; z-index: 10;
+}
+.brand { font-weight: 800; font-size: 1.15rem; color: var(--text); text-decoration: none; letter-spacing: .01em; }
+.brand::before { content: "\2699\FE0E"; color: var(--accent); margin-right: .4rem; }
+.nav { display: flex; gap: 1rem; flex: 1; }
+.nav a { color: var(--text); text-decoration: none; padding: .2rem .4rem; border-radius: .3rem; }
+.nav a:hover { background: var(--surface-2); }
+.stats { display: flex; gap: .5rem; margin-left: auto; font-variant-numeric: tabular-nums; }
+.stats .points {
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 999px; padding: .1rem .75rem; font-weight: 600; font-size: .92rem;
+}
+
+/* Dil menüsü (sağ üst): bayrak + açılır liste */
+.lang-menu { position: relative; }
+.lang-menu summary {
+  display: flex; align-items: center; gap: .45rem; cursor: pointer; list-style: none; user-select: none;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px;
+  padding: .1rem .7rem; font-weight: 600; font-size: .92rem; min-height: 1.75rem;
+}
+.lang-menu summary::-webkit-details-marker { display: none; }
+.lang-menu summary::after {
+  content: ""; width: .4rem; height: .4rem; margin: -.2rem 0 0 .1rem;
+  border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted);
+  transform: rotate(45deg); transition: transform .15s ease;
+}
+.lang-menu[open] summary::after { transform: rotate(-135deg); margin-top: .2rem; }
+.lang-menu summary:hover { border-color: var(--accent); }
+.flag { display: block; width: 1.5rem; height: 1rem; border-radius: 2px; box-shadow: 0 0 0 1px var(--border); object-fit: cover; }
+.lang-list {
+  position: absolute; right: 0; top: calc(100% + .4rem); z-index: 20; min-width: 100%;
+  list-style: none; margin: 0; padding: .3rem; white-space: nowrap;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(0,0,0,.3);
+}
+.lang-list a {
+  display: flex; align-items: center; gap: .55rem; padding: .4rem .7rem;
+  color: var(--text); text-decoration: none; border-radius: .4rem; font-size: .95rem;
+}
+.lang-list a:hover { background: var(--surface-2); }
+.lang-list a[aria-current] { font-weight: 700; color: var(--accent-text); }
+
+.content { max-width: 56rem; margin: 0 auto; padding: 1rem 1rem 3rem; }
+
+/* Panel */
+.summary { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin: .5rem 0 1rem; }
+.summary-points { font-weight: 700; }
+.level-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: 1rem; margin: 1rem 0; }
+.level-card {
+  position: relative; display: block; padding: 1rem 1.1rem; color: var(--text);
+  background: var(--surface); border: 1px solid var(--border); border-left: 5px solid var(--accent);
+  border-radius: var(--radius); text-decoration: none;
+  transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+}
+a.level-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,.25); border-color: var(--accent); }
+.level-card h3 { margin: 0 0 .5rem; font-size: 1.1rem; display: flex; flex-wrap: wrap; gap: .4rem; align-items: baseline; justify-content: space-between; }
+.level-card .status {
+  font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+  padding: .05rem .5rem; border-radius: 999px; background: var(--surface-2); color: var(--accent-text);
+}
+.level-card.completed { border-left-color: var(--ok-border); }
+.level-card.completed .status { background: var(--ok-bg); color: var(--ok); }
+.level-meta, .unlock-info { margin: .5rem 0 0; font-size: .9rem; color: var(--muted); }
+.level-card.locked {
+  background: var(--surface-2); border-left-color: #6b7280; color: var(--muted);
+  filter: grayscale(1); cursor: not-allowed; padding-right: 3.4rem;
+}
+.level-card.locked::after {
+  content: ""; position: absolute; top: .8rem; right: .8rem; width: 1.8rem; height: 1.8rem;
+  background: url("/static/img/badges/locked.svg") center / contain no-repeat;
+}
+.level-card.locked .status { color: var(--muted); }
+
+.progress-bar { height: .65rem; background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; overflow: hidden; margin: .4rem 0; }
+.progress-fill {
+  height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-soft));
+  border-radius: 999px; transition: width .6s ease; animation: fill-in .9s ease-out;
+}
+@keyframes fill-in { from { width: 0; } }
+.level-card.completed .progress-fill { background: var(--ok-border); }
+
+/* Rozetler */
+.badges { list-style: none; padding: 0; margin: 1rem 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr)); gap: .75rem; }
+.badge {
+  display: flex; flex-direction: column; align-items: center; gap: .4rem; text-align: center;
+  padding: .7rem .4rem; font-size: .82rem; font-weight: 600;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+}
+li.badge::before { content: ""; width: 3rem; height: 3rem; background: url("/static/img/badges/locked.svg") center / contain no-repeat; }
+/* ders/test sayfasındaki satır içi "Tamam" etiketi (li değil) */
+.badge:not(li) { display: inline-flex; flex-direction: row; padding: .05rem .6rem; border-radius: 999px; background: var(--ok-bg); color: var(--ok); border-color: var(--ok-border); font-size: .8rem; }
+
+/* Düğme */
+.button {
+  display: inline-block; cursor: pointer; font: inherit; font-weight: 700;
+  padding: .55rem 1.1rem; border: 2px solid transparent; border-radius: var(--radius);
+  background: var(--btn-bg); color: var(--on-accent); text-decoration: none; min-height: 2.5rem;
+  transition: filter .15s ease, transform .1s ease;
+}
+.button:hover { filter: brightness(1.1); }
+.button:active { transform: translateY(1px); }
+.button:disabled, .button.htmx-request { opacity: .75; cursor: progress; }
+.button.htmx-request { position: relative; padding-right: 2.4rem; }
+.button.htmx-request::after {
+  content: ""; position: absolute; right: .8rem; top: 50%; width: 1rem; height: 1rem; margin-top: -.5rem;
+  border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.htmx-indicator { display: none; color: var(--muted); font-size: .9rem; margin-left: .5rem; }
+.htmx-request .htmx-indicator, .htmx-request.htmx-indicator { display: inline; }
+
+/* Seviye sayfası */
+.crumbs { font-size: .9rem; color: var(--muted); }
+.lesson-list { list-style: none; padding: 0; display: grid; gap: .6rem; }
+.lesson-list li.lesson { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; padding: .7rem 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+.lesson-list li.lesson-done { border-color: var(--ok-border); }
+.marks { display: flex; gap: .4rem; }
+.mark-read, .mark-exercise { font-size: .78rem; padding: .05rem .55rem; border-radius: 999px; border: 1px dashed var(--border); color: var(--muted); }
+.mark-read.on, .mark-exercise.on { border-style: solid; border-color: var(--ok-border); background: var(--ok-bg); color: var(--ok); }
+.quiz-link { margin-top: 1rem; }
+
+/* Ders sayfası: okunaklı metin */
+article.lesson { max-width: 44rem; font-size: 1.05rem; line-height: 1.75; }
+.lesson-body p, .lesson-body li { overflow-wrap: break-word; }
+.lesson-body blockquote { margin: 1em 0; padding: .1em 1rem; border-left: 4px solid var(--accent-soft); background: var(--surface); color: var(--muted); }
+.lesson-body table { border-collapse: collapse; display: block; overflow-x: auto; }
+.lesson-body th, .lesson-body td { border: 1px solid var(--border); padding: .35rem .7rem; }
+code { font-family: var(--mono); font-size: .9em; background: var(--code-bg); padding: .1em .35em; border-radius: .25rem; }
+pre {
+  font-family: var(--mono); font-size: .9rem; line-height: 1.5; tab-size: 4; -moz-tab-size: 4;
+  background: var(--code-bg); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: .85rem 1rem; overflow-x: auto; max-width: 100%; margin: 1em 0; white-space: pre;
+}
+pre code { background: none; padding: 0; font-size: inherit; }
+.read-box { margin: 1.5rem 0; }
+.exercise { margin: 2rem 0; padding: 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+.exercise-prompt { margin-top: 0; }
+.code-input {
+  display: block; width: 100%; min-height: 12rem; resize: vertical; margin: .75rem 0;
+  font-family: var(--mono); font-size: .92rem; line-height: 1.55; tab-size: 4; -moz-tab-size: 4;
+  background: var(--code-bg); color: var(--text); border: 2px solid var(--border); border-radius: var(--radius);
+  padding: .75rem 1rem; white-space: pre; overflow: auto; caret-color: var(--accent);
+}
+.code-input:focus-visible { border-color: var(--focus); outline-offset: 1px; }
+.lesson-nav { display: flex; justify-content: space-between; gap: 1rem; margin-top: 2rem; flex-wrap: wrap; }
+
+/* Sonuçlar */
+.result-ok, .result-fail { padding: .7rem 1rem; border-radius: var(--radius); border: 1px solid; margin: .75rem 0; }
+.result-ok { background: var(--ok-bg); border-color: var(--ok-border); color: var(--ok); }
+.result-fail { background: var(--fail-bg); border-color: var(--fail-border); color: var(--fail); }
+.result-ok pre, .result-fail pre { color: var(--text); }
+.result-title { margin: 0 0 .4rem; font-weight: 700; }
+.output { margin: .5rem 0; }
+.gain { font-weight: 700; margin: .4rem 0 0; color: var(--accent-text); }
+.note { font-size: .9rem; }
+
+/* Quiz */
+.question { margin: 1rem 0; padding: 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+.question legend { font-weight: 700; padding: 0 .4rem; }
+.question.answered-ok { border-color: var(--ok-border); }
+.question.answered-fail { border-color: var(--fail-border); }
+.choice { display: flex; gap: .6rem; align-items: flex-start; padding: .4rem .5rem; border-radius: .4rem; cursor: pointer; }
+.choice:hover { background: var(--surface-2); }
+.choice input { margin-top: .45rem; accent-color: var(--accent); width: 1.1rem; height: 1.1rem; }
+
+/* Hata sayfası */
+.error-page { text-align: center; padding: 3rem 1rem; }
+.error-page h1 { color: var(--accent-text); }
+
+/* Duyarlı */
+@media (max-width: 480px) {
+  html { font-size: 15px; }
+  .topbar { padding: .5rem .75rem; }
+  .nav { display: none; } /* marka zaten panele gider; üst bar tek satıra sığsın */
+  .stats { margin-left: auto; }
+  .lang-name { display: none; }
+  .content { padding: .75rem .75rem 2.5rem; }
+  .level-grid { grid-template-columns: 1fr; }
+  .badges { grid-template-columns: repeat(auto-fill, minmax(5.5rem, 1fr)); }
+  .lesson-nav .button { width: 100%; text-align: center; }
+  .exercise { padding: .75rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; scroll-behavior: auto !important; }
+  a.level-card:hover { transform: none; }
+}
+
+/* Rozet görselleri: şablonda img yok; li.badge[title=id] ile eşleşir */
+.badge[title="ilk-adim"]::before { background-image: url("/static/img/badges/ilk-adim.svg"); }
+.badge[title="ilk-egzersiz"]::before { background-image: url("/static/img/badges/ilk-egzersiz.svg"); }
+.badge[title="quiz-ustasi"]::before { background-image: url("/static/img/badges/quiz-ustasi.svg"); }
+.badge[title="senior"]::before { background-image: url("/static/img/badges/senior.svg"); }
+.badge[title="seviye-1-tamam"]::before { background-image: url("/static/img/badges/seviye-1-tamam.svg"); }
+.badge[title="seviye-2-acildi"]::before { background-image: url("/static/img/badges/seviye-2-acildi.svg"); }
+.badge[title="seviye-2-tamam"]::before { background-image: url("/static/img/badges/seviye-2-tamam.svg"); }
+.badge[title="seviye-3-acildi"]::before { background-image: url("/static/img/badges/seviye-3-acildi.svg"); }
+.badge[title="seviye-3-tamam"]::before { background-image: url("/static/img/badges/seviye-3-tamam.svg"); }
+.badge[title="seviye-4-acildi"]::before { background-image: url("/static/img/badges/seviye-4-acildi.svg"); }
+.badge[title="seviye-4-tamam"]::before { background-image: url("/static/img/badges/seviye-4-tamam.svg"); }
+.badge[title="seviye-5-acildi"]::before { background-image: url("/static/img/badges/seviye-5-acildi.svg"); }
+.badge[title="seviye-5-tamam"]::before { background-image: url("/static/img/badges/seviye-5-tamam.svg"); }
+.badge[title="seviye-6-acildi"]::before { background-image: url("/static/img/badges/seviye-6-acildi.svg"); }
+.badge[title="seviye-6-tamam"]::before { background-image: url("/static/img/badges/seviye-6-tamam.svg"); }
+.badge[title="seviye-7-acildi"]::before { background-image: url("/static/img/badges/seviye-7-acildi.svg"); }
+.badge[title="seviye-7-tamam"]::before { background-image: url("/static/img/badges/seviye-7-tamam.svg"); }
+.badge[title="yari-yol"]::before { background-image: url("/static/img/badges/yari-yol.svg"); }
+
+/* Seviye açıldı bildirimi ve sonraki bağlantı */
+.unlock-notice {
+  margin: .75rem 0; padding: .75rem 1rem; font-weight: 700;
+  background: var(--surface); color: var(--text);
+  border: 2px solid var(--accent); border-left-width: 6px; border-radius: var(--radius);
+  box-shadow: 0 0 0 3px rgba(247, 76, 0, .18);
+  animation: unlock-in .5s ease-out;
+}
+.unlock-notice::before { content: "\1F513\FE0E"; margin-right: .5rem; color: var(--accent-text); }
+@keyframes unlock-in { from { opacity: 0; transform: translateY(-.5rem) scale(.98); } }
+.next-link { margin: 1rem 0 0; }
+.next-link .button { color: var(--on-accent); }
+
+/* hx-disabled-elt: formdaki butonlar istek sırasında */
+.button:disabled { cursor: progress; filter: grayscale(.4); transform: none; }
+.button:disabled:hover { filter: grayscale(.4); }
+.button:disabled { position: relative; padding-right: 2.4rem; }
+.button:disabled::after {
+  content: ""; position: absolute; right: .8rem; top: 50%; width: 1rem; height: 1rem; margin-top: -.5rem;
+  border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .7s linear infinite;
+}
+
+.exercise-prompt, .choice, .question legend { overflow-wrap: anywhere; }
+.quiz { margin: 1rem 0; }
+.quiz h1, .quiz h2 { overflow-wrap: anywhere; }

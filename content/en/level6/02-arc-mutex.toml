@@ -1,0 +1,123 @@
+title = "Arc and Mutex: Sharing Data Between Threads"
+body_md = '''
+## Why
+
+A program can do several things at the same time; each of those is
+called a thread. If two threads touch the same data at the same moment
+and at least one of them is writing, the result can get corrupted. That
+is called a data race. In Rust, code that could cause a data race does
+not compile.
+
+`Rc` and `RefCell` are not made for this; both assume a single thread.
+Between threads, these two types take their place:
+
+- `Arc<T>` (atomic reference counted): the thread-safe version of `Rc`.
+  Its counter stays correct even if two threads change it at once.
+- `Mutex<T>`: puts the data behind a lock. To reach the data you first
+  take the lock; until you release it, the other threads wait.
+
+## How
+
+The usual pattern is `Arc<Mutex<T>>`. For each thread you make a new
+owner with `Arc::clone`, and the thread takes its own `Arc`. The next
+lesson shows how to start a thread; for now, look at the lock.
+
+```rust
+use std::sync::{Arc, Mutex};
+
+let counter = Arc::new(Mutex::new(0));
+let c = Arc::clone(&counter);
+// inside another thread:
+*c.lock().unwrap() += 1;
+```
+
+- `lock()` waits until the lock is free, then returns a
+  `Result<MutexGuard<T>, _>`. `unwrap()` gets the guard out of it.
+- The guard shows that you hold the lock. You reach the data with
+  `*guard`. When the guard is dropped, usually at the end of its scope,
+  the lock is released by itself; there is no "unlock" to call.
+- Before reading the result, wait for the threads to finish with `join`.
+  Otherwise you may read a half-finished value.
+
+## Watch out
+
+- Don't hold the lock longer than you need. Use the guard in one line or
+  in a small block so other threads don't wait for nothing.
+- If one thread takes two locks in the order A-B and another in the
+  order B-A, they can wait for each other forever. That is called a
+  deadlock. Take your locks in the same order everywhere.
+- If you call `lock()` again on the same mutex in the same thread while
+  the first guard still exists, the program either hangs or panics.
+- If a thread panics while it holds the lock, the mutex is marked as
+  "poisoned" and later `lock()` calls return `Err`. The `unwrap()` in
+  the examples then panics.
+- An `Arc<T>` alone only lets you read. To change what is inside you
+  need a wrapper such as `Mutex`.
+'''
+example = '''
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+fn main() {
+    let counter = Arc::new(Mutex::new(0));
+    let mut handles = Vec::new();
+
+    for _ in 0..4 {
+        let c = Arc::clone(&counter);
+        handles.push(thread::spawn(move || {
+            for _ in 0..1000 {
+                *c.lock().unwrap() += 1;
+            }
+        }));
+    }
+
+    for h in handles {
+        h.join().unwrap();
+    }
+
+    println!("Result: {}", *counter.lock().unwrap());
+}
+'''
+
+[exercise]
+prompt = "In this exercise the tests start the threads; you will learn how to start a thread in the next lesson. You only write the two functions that take the lock and work on the shared list. `add_id(shared, id)`: take the lock and add `id` to the end of the shared list (`push`). `sorted_ids(shared)`: take the lock and return a COPY of the list sorted from smallest to largest; the shared list itself must not change. Example: if the shared list is `[3, 1, 2]`, `sorted_ids` returns `[1, 2, 3]` and the shared list stays `[3, 1, 2]`. Hint: `lock().unwrap()` gives you the guard; use `.clone()` for the copy and `.sort()` to sort it."
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::thread;
+
+    // Starts one thread per id; the threads write to the shared list with add_id.
+    fn collect_ids(threads: u32) -> Vec<u32> {
+        let shared = Arc::new(Mutex::new(Vec::new()));
+        let mut handles = Vec::new();
+        for id in 0..threads {
+            let s = Arc::clone(&shared);
+            handles.push(thread::spawn(move || add_id(&s, id)));
+        }
+        for h in handles {
+            h.join().unwrap();
+        }
+        sorted_ids(&shared)
+    }
+
+    #[test]
+    fn id_list() {
+        assert_eq!(collect_ids(8), (0..8).collect::<Vec<u32>>());
+    }
+
+    #[test]
+    fn empty() {
+        assert_eq!(collect_ids(0), Vec::<u32>::new());
+    }
+
+    #[test]
+    fn returns_a_copy() {
+        let shared = Arc::new(Mutex::new(vec![3, 1]));
+        add_id(&shared, 2);
+        assert_eq!(sorted_ids(&shared), vec![1, 2, 3]);
+        // The shared list must not be sorted; only the copy is.
+        assert_eq!(*shared.lock().unwrap(), vec![3, 1, 2]);
+    }
+}
+'''

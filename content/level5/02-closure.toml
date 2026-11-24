@@ -1,0 +1,134 @@
+id = "5-02"
+title = "Closure: Fn, FnMut, FnOnce ve move"
+read_points = 10
+body_md = '''
+## Neden
+
+Bazen bir fonksiyona veri değil, davranış vermek istersin: "şu kurala göre
+sırala", "her öğeye şunu uygula". Her seferinde ayrı bir `fn` yazmak
+yorucudur. Closure, tam ihtiyacın olan yerde yazdığın adsız bir
+fonksiyondur. Normal fonksiyondan farkı, çevresindeki değişkenleri de
+kullanabilmesidir; buna "yakalamak" denir.
+
+## Nasıl
+
+Parametreler iki dik çizgi arasına, gövde hemen arkasına yazılır:
+
+```rust
+let n = 10;
+let add = |x: i32| x + n; // n'yi çevresinden yakalar
+println!("{}", add(5));   // 15
+```
+
+Closure'lar için üç trait vardır. Derleyici, closure'ın yakaladığı değerle
+ne yaptığına bakar ve hangilerini uygulayacağına kendi karar verir:
+
+- `FnOnce`: en az bir kez çağrılabilir. Her closure bunu uygular. Yakaladığı
+  değeri tüketen (örneğin dışarı taşıyan) closure yalnız bunu uygular.
+- `FnMut`: defalarca çağrılabilir; yakaladığı değeri değiştirebilir.
+- `Fn`: defalarca çağrılabilir; yakaladığı değeri yalnız okur.
+
+Yani `Fn` olan bir closure aynı zamanda `FnMut` ve `FnOnce`'tır; tersi
+doğru değildir.
+
+Closure alan bir fonksiyon yazarken, işini gören ve closure'dan en az şey
+isteyen trait bound'u seç:
+
+- `F: FnOnce(...)`: her closure'ı kabul eder, ama onu yalnız bir kez
+  çağırabilirsin.
+- `F: FnMut(...)`: defalarca çağırabilirsin; değeri tüketen closure'lar
+  artık kabul edilmez.
+- `F: Fn(...)`: en seçici olanı; yalnız yakaladığı değeri okumakla yetinen
+  closure'ları kabul eder.
+
+Closure normalde değişkenleri ödünç alır (borrow). Başına `move` yazarsan
+değerler closure'ın içine taşınır. Closure'ı fonksiyondan döndürürken bu
+şarttır, çünkü fonksiyon bitince yerel değişkenler silinir:
+
+```rust
+fn make_adder(n: i32) -> Box<dyn Fn(i32) -> i32> {
+    Box::new(move |x| x + n)
+}
+```
+
+## Dikkat
+
+- Burada `move`'u unutursan derleyici
+  `closure may outlive the current function` der: closure, ödünç aldığı
+  değişkenden uzun yaşayabilir.
+- `move` yalnız yakalama biçimini değiştirir. `make_adder`'daki closure
+  `move` ile yazıldı ama hâlâ `Fn`'dir, çünkü `n`'yi sadece okur.
+- Yakaladığı değeri değiştiren closure'ı `let mut` ile tanımla; yoksa
+  çağıramazsın.
+- Her closure'ın tipi kendine özgüdür ve adı yoktur. Dönüş tipinde ya da
+  farklı closure'ları aynı `Vec`'te tutarken bu yüzden
+  `Box<dyn Fn(i32) -> i32>` yazarsın.
+- `move` ile taşınan değer `Copy` değilse (örneğin `String`) dışarıda artık
+  kullanılamaz.
+'''
+example = '''
+fn apply_twice<F: Fn(i32) -> i32>(f: F, x: i32) -> i32 {
+    f(f(x))
+}
+
+fn make_adder(n: i32) -> Box<dyn Fn(i32) -> i32> {
+    Box::new(move |x| x + n)
+}
+
+fn main() {
+    let add5 = make_adder(5);
+    println!("{}", apply_twice(&add5, 1));
+
+    let mut counter = 0;
+    let mut inc = || {
+        counter += 1;
+        counter
+    };
+    inc();
+    inc();
+    println!("sayaç: {}", counter);
+
+    let name = String::from("Rust");
+    let consume = move || name;
+    let owned = consume();
+    println!("{}", owned);
+}
+'''
+
+[exercise]
+prompt = "`make_adder(n)`, aldığı sayıya `n` ekleyen bir closure döndürsün. Örnek: `make_adder(3)` ile elde ettiğin closure'a `4` verince `7` döner. `apply_twice(f, x)` ise `f`'yi art arda iki kez uygulasın, yani `f(f(x))` döndürsün. Örnek: `apply_twice(|x| x * 2, 5)` → `20`. İpucu: closure'ı `Box::new(...)` içine koy ve `n`'yi closure'a taşımak için başına `move` yaz."
+starter = '''
+fn make_adder(n: i32) -> Box<dyn Fn(i32) -> i32> {
+    todo!()
+}
+
+fn apply_twice<F: Fn(i32) -> i32>(f: F, x: i32) -> i32 {
+    todo!()
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn toplayici() {
+        let add3 = make_adder(3);
+        assert_eq!(add3(4), 7);
+    }
+    #[test]
+    fn iki_kez() {
+        assert_eq!(apply_twice(|x| x * 2, 5), 20);
+        assert_eq!(apply_twice(make_adder(3), 10), 16);
+    }
+}
+'''
+solution = '''
+fn make_adder(n: i32) -> Box<dyn Fn(i32) -> i32> {
+    Box::new(move |x| x + n)
+}
+
+fn apply_twice<F: Fn(i32) -> i32>(f: F, x: i32) -> i32 {
+    f(f(x))
+}
+'''
+points = 30

@@ -1,0 +1,143 @@
+id = "3-01"
+title = "Struct: Birbirine Ait Verileri Bir Arada Tut"
+read_points = 10
+body_md = '''
+## Neden
+
+Bir noktayı anlatmak için iki sayı gerekir: `x` ve `y`. Bunları ayrı ayrı
+değişkenlerde tutarsan hangi `x`'in hangi `y` ile eşleştiğini sen takip etmek
+zorunda kalırsın; fonksiyonlara da hep ikisini birden vermen gerekir.
+`struct` ile birbirine ait verileri tek bir tipte toplar, her parçaya bir ad
+verirsin. Artık `fn distance(x: i32, y: i32)` yerine `fn distance(p: &Point)`
+yazarsın; fonksiyonun ne beklediği ilk bakışta anlaşılır.
+
+## Nasıl
+
+Önce tipi tanımlarsın: her alanın (field) adını ve tipini yazarsın. Sonra
+alanlara değer vererek o tipten bir değer oluşturursun.
+
+```rust
+struct Point {
+    x: i32,
+    y: i32,
+}
+
+let p = Point { x: 1, y: 2 };
+println!("{}", p.x); // 1
+```
+
+- Alanlar virgülle ayrılır; son alandan sonraki virgülü yazmasan da olur.
+- Alana nokta ile ulaşırsın: `p.x`. Elinde `&Point` gibi bir referans olsa da
+  aynı şekilde `p.x` yazarsın.
+- Bir alanı değiştirmek için değişkeni `let mut p` diye tanımla; sonra
+  `p.x = 5;` yazabilirsin.
+- Değişkenin adı alanın adıyla aynıysa iki kez yazmana gerek yok:
+  `Point { x: x, y: y }` yerine `Point { x, y }`.
+- Bazı alanları kendin verip gerisini başka bir değerden alabilirsin:
+  `Point { x: 5, ..p }`. Burada `y`, `p`'den gelir.
+- Alanlarına ad vermediğin struct da olur: `struct Meters(f64);`. Buna tuple
+  struct denir; içindeki değere `m.0` ile ulaşırsın.
+- Tanımın üstüne `#[derive(Debug, PartialEq, Clone)]` yazarsan derleyici üç
+  şeyi senin yerine hazırlar: `{:?}` ile yazdırma, `==` ile karşılaştırma ve
+  `.clone()` ile kopyalama.
+
+## Dikkat
+
+- `mut` değişkenin tamamı için geçerlidir. "Yalnız `x` değişsin, `y`
+  değişmesin" diyemezsin.
+- `..p` yazdığında `String` gibi kopyalanmayan alanlar yeni değere taşınır
+  (move); sonrasında `p`'nin o alanlarını kullanamazsın. `p` sana lazımsa
+  `..p.clone()` yaz.
+- `#[derive(Debug)]` yazmadıysan `println!("{:?}", p)` derlenmez. Derleyici
+  `` `Point` doesn't implement `Debug` `` der; yani "bu tipi nasıl
+  yazdıracağımı bilmiyorum".
+- Değer oluştururken bütün alanları vermek zorundasın. Birini unutursan
+  `` missing field `y` in initializer of `Point` `` hatasını alırsın.
+'''
+example = '''
+#[derive(Debug, Clone, PartialEq)]
+struct User {
+    name: String,
+    age: u32,
+    active: bool,
+}
+
+struct Meters(f64);
+
+fn main() {
+    let u = User { name: String::from("Ayşe"), age: 30, active: true };
+    // name yeni; age ve active, u'nun kopyasından gelir
+    let v = User { name: String::from("Can"), ..u.clone() };
+    println!("{:?}", u);
+    println!("{:?}", v);
+    println!("{}", u == v); // false: adları farklı
+    let m = Meters(12.5);
+    println!("{} metre", m.0);
+}
+'''
+
+[exercise]
+prompt = "Üç fonksiyon yaz. `make_point(x, y)`: verilen `x` ve `y` ile bir `Point` döndürür. `manhattan(p)`: noktanın orijine uzaklığını `|x| + |y|` olarak döndürür; örn. (-3, 4) noktası için 7. `shift(p, dx, dy)`: `x`'i `dx`, `y`'yi `dy` kadar kaydırılmış yeni bir `Point` döndürür; örn. (1, 1) noktası `dx = 2`, `dy = -3` ile (3, -2) olur. İpucu: bir `i32`'nin mutlak değerini `.abs()` verir, örn. `p.x.abs()`."
+starter = '''
+#[derive(Debug, PartialEq, Clone, Copy)]
+struct Point {
+    x: i32,
+    y: i32,
+}
+
+fn make_point(x: i32, y: i32) -> Point {
+    todo!()
+}
+
+fn manhattan(p: &Point) -> i32 {
+    todo!()
+}
+
+fn shift(p: Point, dx: i32, dy: i32) -> Point {
+    todo!()
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn olustur() {
+        assert_eq!(make_point(1, 2), Point { x: 1, y: 2 });
+    }
+
+    #[test]
+    fn uzaklik() {
+        assert_eq!(manhattan(&Point { x: -3, y: 4 }), 7);
+        assert_eq!(manhattan(&make_point(0, 0)), 0);
+    }
+
+    #[test]
+    fn kaydir() {
+        let p = shift(Point { x: 1, y: 1 }, 2, -3);
+        assert_eq!(p, Point { x: 3, y: -2 });
+        assert_eq!(p.x, 3);
+    }
+}
+'''
+solution = '''
+#[derive(Debug, PartialEq, Clone, Copy)]
+struct Point {
+    x: i32,
+    y: i32,
+}
+
+fn make_point(x: i32, y: i32) -> Point {
+    Point { x, y }
+}
+
+fn manhattan(p: &Point) -> i32 {
+    p.x.abs() + p.y.abs()
+}
+
+fn shift(p: Point, dx: i32, dy: i32) -> Point {
+    Point { x: p.x + dx, y: p.y + dy }
+}
+'''
+points = 30

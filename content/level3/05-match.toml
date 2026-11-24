@@ -1,0 +1,167 @@
+id = "3-05"
+title = "match: Her Durumu Tek Tek Ele Al"
+read_points = 10
+body_md = '''
+## Neden
+
+Enum ve `Option` ile "şu durumlardan biri" diyebiliyorsun. Sıra, her durumda
+ne yapılacağını yazmakta. Bunu `if / else if` zinciriyle yaparsan bir durumu
+atlaman kolaydır ve atladığını ancak program yanlış çalışınca fark edersin.
+`match`'te böyle bir boşluk kalmaz: karşılamadığın bir durum varsa kod
+derlenmez. Enum'a yeni bir variant eklediğinde de onu ele almayan her `match`
+hata verir; nereleri güncellemen gerektiğini derleyici sana sayar.
+
+## Nasıl
+
+`match` bir değeri sırayla desenlerle karşılaştırır. Her kol (arm)
+`desen => ifade` diye yazılır. `match` de `if` gibi bir ifadedir: uyan kolun
+ürettiği değer, `match`'in değeri olur.
+
+```rust
+enum Command {
+    Quit,
+    Move { x: i32, y: i32 },
+    Write(String),
+}
+
+fn run(c: &Command) -> i32 {
+    match c {
+        Command::Quit => 0,
+        Command::Move { x, y } => x.abs() + y.abs(),
+        Command::Write(s) => s.len() as i32,
+    }
+}
+```
+
+Desen yalnızca "hangi variant?" diye bakmaz, içindeki veriyi de çıkarıp ona ad
+verir: `Move { x, y }` kolunda `x` ile `y`, `Write(s)` kolunda `s` kullanıma
+hazırdır.
+
+Sayılarda ve başka değerlerde işine yarayacak desenler:
+
+- `1 | 2 => ...`: 1 ya da 2.
+- `90..=100 => ...`: 90'dan 100'e kadar, 100 dahil.
+- `n if n < 0 => ...`: desene ek koşul (guard). Koşul doğruysa kol çalışır.
+- `n @ 1..=9 => ...`: değer aralığa uyuyorsa onu `n` adıyla da verir.
+- `_ => ...`: geri kalan her şey.
+
+## Dikkat
+
+- Bütün durumları karşılamak zorundasın. Yukarıda `Write` kolunu silersen
+  derleyici `` non-exhaustive patterns: `&Command::Write(_)` not covered ``
+  der; yani "`Write` durumunu yazmadın".
+- Kollar yukarıdan aşağıya denenir ve ilk uyan çalışır. `_` her şeye uyduğu
+  için en sona yazılır; üste koyarsan altındaki kollara hiç sıra gelmez.
+- Bütün kollar aynı tipte değer üretmelidir. Biri `i32`, öteki `&str` olamaz.
+- Yukarıdaki gibi bir referans üzerinde `match` yaparsan (`c: &Command`)
+  desendeki adlar da referans olur: `x` bir `&i32`'dir. Metot çağırırken bunu
+  fark etmezsin, ama sayının kendisi gerekiyorsa `*x` yaz.
+'''
+example = '''
+enum Command {
+    Quit,
+    Move { x: i32, y: i32 },
+    Write(String),
+}
+
+fn run(c: &Command) -> i32 {
+    match c {
+        Command::Quit => 0,
+        Command::Move { x, y } => x.abs() + y.abs(),
+        Command::Write(s) => s.len() as i32,
+    }
+}
+
+fn classify(n: i32) -> &'static str {
+    match n {
+        i32::MIN..=-1 => "negatif",
+        0 => "sıfır",
+        x if x % 2 == 0 => "pozitif çift",
+        _ => "pozitif tek",
+    }
+}
+
+fn main() {
+    println!("{}", run(&Command::Move { x: -2, y: 3 }));
+    println!("{}", run(&Command::Write(String::from("selam"))));
+    println!("{}", run(&Command::Quit));
+    for n in [-5, 0, 4, 7] {
+        println!("{} -> {}", n, classify(n));
+    }
+}
+'''
+
+[exercise]
+prompt = "İki fonksiyon yaz; ikisi de `match` ile rahatça yazılır. `score(c)`: komuta göre puan döndürür: `Quit` -> 0; `Move { x, y }` -> `|x| + |y|` (örn. x = -2, y = 3 için 5); `Write(s)` -> metnin bayt uzunluğu (örn. \"abc\" için 3); `Color(r, g, b)` -> üç sayının `i32` olarak toplamı (örn. 255, 255, 255 için 765). `grade_letter(points)`: 90..=100 için 'A', 80..=89 için 'B', 70..=79 için 'C', 0..=69 için 'D', 100'den büyük her sayı için 'X' döndürür. İpucu: `c` bir referans olduğu için `r`, `g`, `b` birer `&u8` olur; toplamadan önce her birini `*r as i32` gibi `i32`'ye çevir, yoksa toplam `u8`'e sığmaz."
+starter = '''
+#[derive(Debug)]
+enum Command {
+    Quit,
+    Move { x: i32, y: i32 },
+    Write(String),
+    Color(u8, u8, u8),
+}
+
+fn score(c: &Command) -> i32 {
+    todo!()
+}
+
+fn grade_letter(points: u32) -> char {
+    todo!()
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn komut_puani() {
+        assert_eq!(score(&Command::Quit), 0);
+        assert_eq!(score(&Command::Move { x: -2, y: 3 }), 5);
+        assert_eq!(score(&Command::Write("abc".to_string())), 3);
+        assert_eq!(score(&Command::Color(1, 2, 3)), 6);
+        assert_eq!(score(&Command::Color(255, 255, 255)), 765);
+    }
+
+    #[test]
+    fn harf_notu() {
+        assert_eq!(grade_letter(95), 'A');
+        assert_eq!(grade_letter(100), 'A');
+        assert_eq!(grade_letter(85), 'B');
+        assert_eq!(grade_letter(75), 'C');
+        assert_eq!(grade_letter(10), 'D');
+        assert_eq!(grade_letter(0), 'D');
+        assert_eq!(grade_letter(101), 'X');
+    }
+}
+'''
+solution = '''
+#[derive(Debug)]
+enum Command {
+    Quit,
+    Move { x: i32, y: i32 },
+    Write(String),
+    Color(u8, u8, u8),
+}
+
+fn score(c: &Command) -> i32 {
+    match c {
+        Command::Quit => 0,
+        Command::Move { x, y } => x.abs() + y.abs(),
+        Command::Write(s) => s.len() as i32,
+        Command::Color(r, g, b) => *r as i32 + *g as i32 + *b as i32,
+    }
+}
+
+fn grade_letter(points: u32) -> char {
+    match points {
+        90..=100 => 'A',
+        80..=89 => 'B',
+        70..=79 => 'C',
+        0..=69 => 'D',
+        _ => 'X',
+    }
+}
+'''
+points = 30

@@ -1,0 +1,155 @@
+id = "5-01"
+title = "Lifetime: 'a Ne Anlatır?"
+read_points = 10
+body_md = '''
+## Neden
+
+Referans, başkasına ait bir değere bakar. O değer silindikten (drop) sonra
+referansı kullanırsan artık orada olmayan bir şeyi okumuş olursun. Rust
+buna izin vermez: derleyici her referansın ne kadar süre geçerli kaldığını
+takip eder. Bu süreye lifetime denir.
+
+Çoğu zaman lifetime'ı derleyici kendi bulur, sen bir şey yazmazsın. Ama bir
+fonksiyon iki referans alıp bir referans döndürüyorsa derleyici şunu
+bilemez: dönen referans hangi parametreden geliyor? O zaman
+`missing lifetime specifier` (lifetime belirtilmemiş) hatası verir ve bu
+bağı senin yazmanı ister.
+
+## Nasıl
+
+Lifetime adı kesme işaretiyle başlar; alışkanlık olarak `'a` yazılır. Önce
+fonksiyon adından sonra `<'a>` ile tanıtırsın, sonra referans tiplerinde
+kullanırsın:
+
+```rust
+fn longest<'a>(a: &'a str, b: &'a str) -> &'a str {
+    if a.len() >= b.len() { a } else { b }
+}
+```
+
+Bu imza şunu söyler: sonuç `a`'dan da `b`'den de gelebilir, o yüzden ancak
+ikisi birden geçerliyken kullanılabilir. Hangisi önce silinirse sonuç da
+o anda geçersiz olur.
+
+Referans tutan bir struct'ta da lifetime yazılır:
+
+```rust
+struct Excerpt<'a> {
+    part: &'a str,
+}
+```
+
+Anlamı: bir `Excerpt`, baktığı metinden daha uzun yaşayamaz.
+
+Metotlarda bir incelik var. `fn first_word(&self) -> &str` yazarsan
+derleyici sonucu `self`'e bağlar; struct silinince sonuç da kullanılamaz.
+`-> &'a str` yazarsan sonuç struct'a değil, asıl metne bağlanır ve struct
+silindikten sonra da geçerli kalır.
+
+`'static` özel bir lifetime'dır: "program bitene kadar geçerli" demektir.
+Kodun içine yazdığın `"merhaba"` gibi metinler böyledir.
+
+## Dikkat
+
+- Lifetime yazmak hiçbir değeri daha uzun yaşatmaz. Yalnızca zaten var olan
+  bağı derleyiciye anlatırsın.
+- Fonksiyonun içinde oluşturduğun bir `String`'e referans döndüremezsin;
+  fonksiyon bitince o `String` silinir. Derleyici
+  `cannot return reference to local variable` (yerel değişkene referans
+  döndürülemez) der. Çözüm: referansı değil, `String`'in kendisini döndür.
+- Hata çıkınca her yere `'static` yazma. Sorun çözülmez; derleyici bu sefer
+  değerin program bitene kadar yaşamasını ister.
+- Fonksiyon tek bir referans alıyorsa ya da `&self` alan bir metotsa `'a`
+  yazmana gerek yok; derleyici boşluğu kendi doldurur. Seviye 2'deki
+  `ilk_kelime` bu yüzden lifetime'sız yazılabildi.
+'''
+example = '''
+struct Excerpt<'a> {
+    part: &'a str,
+}
+
+fn longest<'a>(a: &'a str, b: &'a str) -> &'a str {
+    if a.len() >= b.len() { a } else { b }
+}
+
+fn main() {
+    let text = String::from("Rust öğrenmek keyifli. Devam edelim.");
+    let first = text.split('.').next().unwrap_or("");
+    let ex = Excerpt { part: first };
+    println!("Alıntı: {}", ex.part);
+    println!("Uzun olan: {}", longest("elma", "armut"));
+}
+'''
+
+[exercise]
+prompt = '''İmzalar hazır, sen gövdeleri yaz. `longest(a, b)` iki metinden uzun olanı döndürsün (uzunluğu `len()` ile ölç); uzunluklar eşitse `a`'yı döndürsün. Örnek: `longest("abc", "de")` → `"abc"`. `Excerpt::first_word` metnin ilk boşluğa kadarki kısmını, yani ilk kelimeyi döndürsün; metinde boşluk yoksa metnin tamamını, metin boşsa `""` döndürsün. Örnek: `"merhaba dünya"` → `"merhaba"`. Dönüş tipi `&'a str` olduğu için sonuç, `Excerpt` silindikten (drop) sonra da geçerli kalır. İpucu: Seviye 2'deki `ilk_kelime` fonksiyonunda yaptığın gibi `for (i, c) in self.text.char_indices()` döngüsüyle ilk boşluğu bul ve `&self.text[..i]` slice'ını döndür.'''
+starter = '''
+fn longest<'a>(a: &'a str, b: &'a str) -> &'a str {
+    todo!()
+}
+
+struct Excerpt<'a> {
+    text: &'a str,
+}
+
+impl<'a> Excerpt<'a> {
+    fn first_word(&self) -> &'a str {
+        todo!()
+    }
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn uzun_olan() {
+        assert_eq!(longest("abc", "de"), "abc");
+        assert_eq!(longest("a", "bcd"), "bcd");
+    }
+    #[test]
+    fn esitse_ilki() {
+        assert_eq!(longest("ab", "cd"), "ab");
+    }
+    #[test]
+    fn ilk_kelime() {
+        let e = Excerpt { text: "merhaba dünya" };
+        assert_eq!(e.first_word(), "merhaba");
+        assert_eq!(Excerpt { text: "" }.first_word(), "");
+    }
+    #[test]
+    fn struct_dusse_de_gecerli() {
+        let w;
+        {
+            let e = Excerpt { text: "bir iki" };
+            w = e.first_word();
+        }
+        assert_eq!(w, "bir");
+    }
+}
+'''
+solution = '''
+fn longest<'a>(a: &'a str, b: &'a str) -> &'a str {
+    if a.len() >= b.len() {
+        a
+    } else {
+        b
+    }
+}
+
+struct Excerpt<'a> {
+    text: &'a str,
+}
+
+impl<'a> Excerpt<'a> {
+    fn first_word(&self) -> &'a str {
+        for (i, c) in self.text.char_indices() {
+            if c == ' ' {
+                return &self.text[..i];
+            }
+        }
+        self.text
+    }
+}
+'''
+points = 30

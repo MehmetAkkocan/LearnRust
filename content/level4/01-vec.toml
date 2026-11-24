@@ -1,0 +1,113 @@
+id = "4-01"
+title = "Vec: Büyüyen Liste"
+read_points = 10
+body_md = '''
+## Neden
+
+Programların çoğu tek bir değerle değil, bir sürü değerle uğraşır: sınav
+notları, sipariş kalemleri, sensör ölçümleri. Kaç tane olacağını da çoğu
+zaman baştan bilemezsin. Bunun için `Vec<T>` kullanırsın: hepsi aynı tipte
+elemanlardan oluşan, istediğin kadar büyüyebilen bir liste. Elemanlar
+heap'te durur. `Vec`'in sahibi kapsamdan çıkınca liste, elemanlarıyla
+birlikte silinir (drop).
+
+## Nasıl
+
+Boş bir liste için `Vec::new()`, içi dolu bir liste için `vec![...]`
+yazarsın. Eleman ekleyip çıkaracaksan değişken `mut` olmalı.
+
+```rust
+let mut nums = vec![1, 2, 3];
+nums.push(4);                 // sona ekler
+let first = nums[0];          // 1; böyle bir indeks yoksa panic olur
+let maybe = nums.get(10);     // Option<&i32>; burada None
+for n in nums.iter() {
+    println!("{}", n);        // n: &i32, yalnızca okursun
+}
+for n in nums.iter_mut() {
+    *n *= 2;                  // n: &mut i32, elemanı yerinde değiştirir
+}
+```
+
+- `len()` eleman sayısını verir, `is_empty()` liste boş mu diye bakar.
+- `pop()` son elemanı listeden çıkarır ve `Option` içinde verir; liste
+  boşsa `None` gelir.
+- `iter()` elemanların kendisini değil, referansını verir. Sayının kendisi
+  lazımsa başına `*` koyarsın: `total += *n;`
+- `for n in &nums` ile `for n in nums.iter()` aynı şeydir; listeye
+  dokunmaz. `for n in nums` ise listeyi döngüye taşır (move).
+- Listeyi yalnızca okuyan bir fonksiyonda parametreyi `&[T]` (slice) yap.
+  Böylece fonksiyona hem bir `Vec` hem de bir dizi verebilirsin:
+  `sum(&nums)`, `sum(&[1, 2, 3])`.
+
+## Dikkat
+
+- `nums[i]`, olmayan bir indekste programı panic ile durdurur. İndeks
+  dışarıdan geliyorsa (kullanıcıdan, dosyadan) `get` kullan ve `None`
+  durumunu ele al.
+- Bir elemanın referansını tutarken `push` çağıramazsın. `let first =
+  &nums[0];` dedikten sonra `nums.push(5);` yazıp `first`'ü kullanırsan
+  derleyici `cannot borrow nums as mutable because it is also borrowed as
+  immutable` der. Sebebi şu: yer kalmayınca `push` bütün elemanları
+  bellekte başka bir yere taşır; `first` o zaman artık geçersiz bir yeri
+  gösterirdi.
+- `for n in nums` döngüsünden sonra `nums`'ı kullanamazsın, çünkü liste
+  döngüye taşınmıştır. Listeyi sonra da kullanacaksan `&nums` üzerinde dön.
+'''
+example = '''
+fn main() {
+    let mut scores = vec![70, 85, 90];
+    scores.push(60);
+
+    let mut total = 0;
+    for s in scores.iter() {
+        total += *s;
+    }
+    println!("Toplam: {}, adet: {}", total, scores.len());
+
+    match scores.get(10) {
+        Some(v) => println!("Bulundu: {}", v),
+        None => println!("10. indekste eleman yok"),
+    }
+
+    for s in scores.iter_mut() {
+        *s += 5;
+    }
+    println!("{:?}", scores);
+}
+'''
+
+[exercise]
+prompt = "`sum_even(v: &[i32]) -> i32` fonksiyonunu yaz: slice'taki çift sayıları toplayıp döndürsün. Örnek: `[1, 2, 3, 4, 5, 6]` → `12`. Slice boşsa ya da içinde hiç çift sayı yoksa `0` döndür. Negatif çift sayılar da toplama girer: `[-2, -3, 7]` → `-2`. İpucu: `x` çift ise `x % 2 == 0` olur."
+starter = '''
+fn sum_even(v: &[i32]) -> i32 {
+    todo!()
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn cift_toplam() {
+        assert_eq!(sum_even(&[1, 2, 3, 4, 5, 6]), 12);
+    }
+    #[test]
+    fn bos_ve_negatif() {
+        assert_eq!(sum_even(&[]), 0);
+        assert_eq!(sum_even(&[-2, -3, 7]), -2);
+    }
+}
+'''
+solution = '''
+fn sum_even(v: &[i32]) -> i32 {
+    let mut sum = 0;
+    for x in v.iter() {
+        if *x % 2 == 0 {
+            sum += *x;
+        }
+    }
+    sum
+}
+'''
+points = 30

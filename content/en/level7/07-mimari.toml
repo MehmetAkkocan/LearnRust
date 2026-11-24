@@ -1,0 +1,81 @@
+title = "Architecture: dyn Trait or Generic?"
+body_md = '''
+## Why
+
+You have described a behavior with a trait; say `Pricing`, which calculates a price. The code that uses it has to choose: generic (`S: Pricing`) or trait object (`dyn Pricing`)? Both say "I work with anything that is `Pricing`". But they cost different things and allow different things. Knowing which one you picked and why lets your code grow more easily later.
+
+## How
+
+**Generic: static dispatch.** Which method gets called is known at compile time. The compiler produces a separate copy of the function for every concrete type you use (monomorphization). The call is direct and the compiler can even inline it; this is the fastest way. The price: a bigger program file and longer compile times.
+
+```rust
+fn run<S: Pricing>(s: &S, base: u32) -> u32 { s.price(base) }
+```
+
+**dyn Trait: dynamic dispatch.** Which method gets called is looked up at run time in a table of addresses called the vtable. Every call has a small extra cost, and the values usually sit on the heap inside a `Box`. In return you can put different types in the same list and pick the type while the program runs.
+
+```rust
+let list: Vec<Box<dyn Pricing>> = vec![Box::new(Flat(10)), Box::new(Percent(50))];
+```
+
+A rough rule:
+
+- Code that runs very often, type known up front: generic.
+- A list of different types, plugins added later, behavior picked from a setting: `dyn`.
+- You can have both: write `impl<T: Pricing + ?Sized> Pricing for Box<T>` and a `Box<dyn Pricing>` can be passed to generic functions too.
+
+Use the same scale for the rest of your architecture. In a module, make `pub` only what the outside really needs. For error types, use an `enum` in a library so the caller can `match` on it; at the top layer of an application `Box<dyn Error>` is enough.
+
+## Watch out
+
+- Put `dyn` everywhere and code that runs often gets slower for nothing. Put generics everywhere and the program bloats and signatures become unreadable.
+- Not every trait can be used with `dyn`: traits with a generic method or a method that returns `Self` don't qualify. The compiler reports this as "not dyn compatible" (formerly "not object safe").
+- Pick the readable option first. If you measure and find it slow, you can change it.
+- Once something is `pub`, taking it back breaks the code of everyone who uses it.
+'''
+example = '''
+trait Pricing {
+    fn price(&self, base: u32) -> u32;
+}
+
+struct Flat(u32);
+struct Percent(u32);
+
+impl Pricing for Flat {
+    fn price(&self, base: u32) -> u32 {
+        base.saturating_sub(self.0)
+    }
+}
+
+impl Pricing for Percent {
+    fn price(&self, base: u32) -> u32 {
+        base - base * self.0 / 100
+    }
+}
+
+impl<T: Pricing + ?Sized> Pricing for Box<T> {
+    fn price(&self, base: u32) -> u32 {
+        (**self).price(base)
+    }
+}
+
+// Static dispatch: the type is known at compile time, the call can be inlined.
+fn run_generic<S: Pricing>(s: &S, base: u32) -> u32 {
+    s.price(base)
+}
+
+// Dynamic dispatch: different types sit in the same list.
+fn run_all(list: &[Box<dyn Pricing>], base: u32) -> Vec<u32> {
+    list.iter().map(|s| s.price(base)).collect()
+}
+
+fn main() {
+    println!("{}", run_generic(&Flat(30), 100));
+    let list: Vec<Box<dyn Pricing>> = vec![Box::new(Flat(10)), Box::new(Percent(50))];
+    println!("{:?}", run_all(&list, 100));
+    println!("{}", run_generic(&list[1], 100));
+}
+'''
+
+[exercise]
+prompt = "Write two discount strategies and three functions that use them. `Flat(n).price(base)` takes `n` off the price but never goes below zero: `Flat(30)` with `100` → `70`, `Flat(200)` with `100` → `0`. Hint: `base.saturating_sub(n)` subtracts and gives `0` when the result would drop below zero. `Percent(p).price(base)` takes `p` percent off: `base - base * p / 100`; `Percent(25)` with `100` → `75`. `apply_all` applies every strategy in the list to the same `base` separately and returns the results in order in a `Vec`. `apply_generic` applies a single strategy to `base`. `apply_chain` chains the strategies: the first one is applied to `base`, each following one to the previous result; for an empty list it returns `base`. Example: for `[Flat(20), Percent(50)]` and `100`, `apply_all` → `[80, 50]` and `apply_chain` → `40`. The `impl` for `Box<T>` is already in the starter code; leave it as it is."

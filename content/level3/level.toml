@@ -1,0 +1,200 @@
+id = 3
+slug = "veri-modelleme"
+title = "Kendi Tiplerini Tanımla"
+description = "Struct ve enum ile kendi tiplerini kur, impl ile onlara metot ekle. Option, match, if let ve modüllerle bu tipleri güvenle kullan."
+
+[[quiz.mcq]]
+id = "3-m1"
+q = "Bir metot `&mut self` alıyor. Onu çağırabilmek için değişkeni nasıl tanımlamış olman gerekir?"
+choices = ["let a = ...;", "const a = ...;", "let mut a = ...;", "static a = ...;"]
+answer = 2
+
+[[quiz.mcq]]
+id = "3-m2"
+q = "`impl` bloğunda yazılan, `self` almayan ve `Account::new(10)` diye çağrılan fonksiyona ne denir?"
+choices = ["Associated function", "Macro", "Closure", "Modül"]
+answer = 0
+
+[[quiz.mcq]]
+id = "3-m3"
+q = "Rust'ta `null` yoktur. Bir değerin olmayabileceğini hangi tip anlatır?"
+choices = ["Void", "Nil", "Maybe", "Option<T>"]
+answer = 3
+
+[[quiz.mcq]]
+id = "3-m4"
+q = "`match` için hangisi doğrudur?"
+choices = ["Bir durumu yazmasan da kod derlenir", "Bütün durumları karşılamak zorundadır", "Yalnızca sayılarla kullanılır", "Her kolun sonuna `break` yazılır"]
+answer = 1
+
+[[quiz.mcq]]
+id = "3-m5"
+q = "Modülün içindeki bir fonksiyonu modülün dışından çağırabilmek için başına ne yazarsın?"
+choices = ["use mut", "extern", "pub", "static"]
+answer = 2
+
+[[quiz.coding]]
+id = "3-q1"
+prompt = "Bir trafik ışığı yaz. `TrafficLight::new()`: ışığı `Red`, `ticks` alanı 0 olan bir değer döndürür. `next()`: ışığı bir adım ilerletir (Red -> Green -> Yellow -> Red) ve `ticks`'i 1 artırır. `is_go()`: ışık `Green` ise `true`, değilse `false` döndürür. Örn. `new()`'dan sonra üç kez `next()` çağrılınca ışık yine `Red`, `ticks` 3 olur."
+starter = '''
+#[derive(Debug, PartialEq, Clone, Copy)]
+enum Light {
+    Red,
+    Yellow,
+    Green,
+}
+
+#[derive(Debug)]
+struct TrafficLight {
+    state: Light,
+    ticks: u32,
+}
+
+impl TrafficLight {
+    fn new() -> Self {
+        todo!()
+    }
+
+    fn next(&mut self) {
+        todo!()
+    }
+
+    fn is_go(&self) -> bool {
+        todo!()
+    }
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn baslangic() {
+        let t = TrafficLight::new();
+        assert_eq!(t.state, Light::Red);
+        assert_eq!(t.ticks, 0);
+        assert!(!t.is_go());
+    }
+
+    #[test]
+    fn dongu() {
+        let mut t = TrafficLight::new();
+        t.next();
+        assert_eq!(t.state, Light::Green);
+        assert!(t.is_go());
+        t.next();
+        assert_eq!(t.state, Light::Yellow);
+        assert!(!t.is_go());
+        t.next();
+        assert_eq!(t.state, Light::Red);
+        assert_eq!(t.ticks, 3);
+    }
+}
+'''
+solution = '''
+#[derive(Debug, PartialEq, Clone, Copy)]
+enum Light {
+    Red,
+    Yellow,
+    Green,
+}
+
+#[derive(Debug)]
+struct TrafficLight {
+    state: Light,
+    ticks: u32,
+}
+
+impl TrafficLight {
+    fn new() -> Self {
+        TrafficLight { state: Light::Red, ticks: 0 }
+    }
+
+    fn next(&mut self) {
+        self.state = match self.state {
+            Light::Red => Light::Green,
+            Light::Green => Light::Yellow,
+            Light::Yellow => Light::Red,
+        };
+        self.ticks += 1;
+    }
+
+    fn is_go(&self) -> bool {
+        self.state == Light::Green
+    }
+}
+'''
+points = 50
+
+[[quiz.coding]]
+id = "3-q2"
+prompt = "`average_grade(students)` fonksiyonunu yaz. Her öğrencinin `grade` alanı bir `Option<u32>`'dir: notu varsa `Some(not)`, yoksa `None`. Fonksiyon yalnızca notu olan öğrencilerin ortalamasını `Some` içinde döndürür; bölme tamsayı bölmesidir, küsurat atılır. Notu olan hiç öğrenci yoksa (liste boşsa da) `None` döndürür. Örn. notlar `Some(80)`, `None`, `Some(91)` ise sonuç `Some(85)` olur. İpucu: `for s in students` slice'ı dolaşır; her öğrencinin notuna `if let Some(g) = s.grade` ile bakabilirsin."
+starter = '''
+#[derive(Debug, Clone)]
+struct Student {
+    name: String,
+    grade: Option<u32>,
+}
+
+fn average_grade(students: &[Student]) -> Option<u32> {
+    todo!()
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn st(name: &str, grade: Option<u32>) -> Student {
+        Student { name: name.to_string(), grade }
+    }
+
+    #[test]
+    fn bos_liste() {
+        assert_eq!(average_grade(&[]), None);
+    }
+
+    #[test]
+    fn hepsi_notsuz() {
+        let v = vec![st("Ali", None), st("Veli", None)];
+        assert_eq!(average_grade(&v), None);
+    }
+
+    #[test]
+    fn karisik() {
+        let v = vec![st("Ali", Some(80)), st("Veli", None), st("Ayşe", Some(91))];
+        assert_eq!(average_grade(&v), Some(85));
+    }
+
+    #[test]
+    fn tek_not() {
+        let v = vec![st("Can", Some(70))];
+        assert_eq!(average_grade(&v), Some(70));
+    }
+}
+'''
+solution = '''
+#[derive(Debug, Clone)]
+struct Student {
+    name: String,
+    grade: Option<u32>,
+}
+
+fn average_grade(students: &[Student]) -> Option<u32> {
+    let mut sum = 0;
+    let mut count = 0;
+    for s in students {
+        if let Some(g) = s.grade {
+            sum += g;
+            count += 1;
+        }
+    }
+    if count == 0 {
+        None
+    } else {
+        Some(sum / count)
+    }
+}
+'''
+points = 50

@@ -1,0 +1,116 @@
+id = "2-03"
+title = "Referanslar ve Borrow"
+read_points = 10
+body_md = '''
+## Neden
+
+Bir fonksiyona `String` verince değer fonksiyona taşınıyor; geri almak için
+onu döndürmek gerekiyor. Oysa çoğu zaman fonksiyonun değere sadece bakması
+yeter. Bunun için referans var: değeri vermezsin, yerini gösterirsin. Rust
+buna borrow der; yani değeri ödünç alırsın. Arkadaşının kitabını okumak için
+alman gibi: okursun, geri verirsin, kitap hep onun olarak kalır.
+
+## Nasıl
+
+Referans oluşturmak için değerin önüne `&` koyarsın. Fonksiyon parametresinin
+tipi de `&` ile başlar:
+
+```rust
+fn uzunluk(s: &String) -> usize {
+    s.len()
+}
+
+let s = String::from("merhaba");
+let n = uzunluk(&s); // s'i ödünç verdik
+println!("{} {}", s, n); // s hâlâ bizim
+```
+
+`&String`, "bir `String`'e referans" diye okunur. Fonksiyon bitince referans
+ortadan kalkar ama değer silinmez, çünkü fonksiyon onun sahibi değildir.
+
+`&` ile aldığın referans yalnızca okuma izni verir; değeri onunla
+değiştiremezsin. Buna karşılık aynı değere aynı anda istediğin kadar `&`
+referansı olabilir, çünkü okuyanlar birbirine zarar vermez.
+
+Referansın gösterdiği değere `*r` yazarak ulaşırsın: `let r = &x;` dedikten
+sonra `*r`, `x`'in değeridir. Çoğu zaman bunu yazman gerekmez. `s.len()` gibi
+metot çağrılarında ve `println!` içinde Rust, referansın gösterdiği değere
+kendisi gider.
+
+## Dikkat
+
+- Bir referans, gösterdiği değerden uzun yaşayamaz. Fonksiyonun içinde
+  tanımladığın bir değişkene referans döndüremezsin: fonksiyon bitince
+  değişken silinir ve referans artık var olmayan bir değeri gösterir. Buna
+  "dangling reference" denir; derleyici izin vermez.
+- Referans vermek değeri taşımaz. Bu yüzden çağrıdan sonra değişkeni
+  kullanmaya devam edersin.
+- Metin alan parametrelerde `&String` yerine genellikle `&str` yazılır; o
+  zaman fonksiyon hem `String`'i hem de `"..."` diye yazılmış metni kabul
+  eder. Ayrıntısı bu seviyenin son dersinde.
+'''
+example = '''
+fn uzunluk(s: &String) -> usize {
+    s.len()
+}
+
+fn main() {
+    let s = String::from("merhaba");
+    let n1 = uzunluk(&s);
+    let n2 = uzunluk(&s);
+    println!("{} uzunluğu {} ve {}", s, n1, n2);
+}
+'''
+
+[exercise]
+prompt = '''İki fonksiyon yaz. `toplam_uzunluk(a: &String, b: &String) -> usize` iki metnin bayt uzunluklarını (`len()`) toplayıp döndürür: `"merhaba"` ve `"rust"` → `11`. `daha_uzun_mu(a: &String, b: &String) -> bool` ise `a`, `b`'den uzunsa `true`, değilse (uzunluklar eşitse de) `false` döndürür. İkisi de metinleri yalnızca ödünç alır; testler çağrıdan sonra aynı `String`'leri kullanmaya devam eder.'''
+starter = '''
+fn toplam_uzunluk(a: &String, b: &String) -> usize {
+    todo!()
+}
+
+fn daha_uzun_mu(a: &String, b: &String) -> bool {
+    todo!()
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn toplar() {
+        let a = String::from("merhaba");
+        let b = String::from("rust");
+        assert_eq!(toplam_uzunluk(&a, &b), 11);
+        // Ödünç verildi: a ve b hâlâ bizim, tekrar kullanılabilir.
+        assert_eq!(toplam_uzunluk(&b, &a), 11);
+        assert_eq!(a, "merhaba");
+        assert_eq!(b, "rust");
+    }
+    #[test]
+    fn bos_metin() {
+        let a = String::new();
+        let b = String::from("ş");
+        assert_eq!(toplam_uzunluk(&a, &a), 0);
+        assert_eq!(toplam_uzunluk(&a, &b), 2);
+    }
+    #[test]
+    fn karsilastirir() {
+        let a = String::from("merhaba");
+        let b = String::from("rust");
+        assert!(daha_uzun_mu(&a, &b));
+        assert!(!daha_uzun_mu(&b, &a));
+        assert!(!daha_uzun_mu(&a, &a));
+    }
+}
+'''
+solution = '''
+fn toplam_uzunluk(a: &String, b: &String) -> usize {
+    a.len() + b.len()
+}
+
+fn daha_uzun_mu(a: &String, b: &String) -> bool {
+    a.len() > b.len()
+}
+'''
+points = 30

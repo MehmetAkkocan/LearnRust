@@ -1,0 +1,105 @@
+id = "2-02"
+title = "Copy ve Move Farkı"
+read_points = 10
+body_md = '''
+## Neden
+
+Önceki derste `let b = a;` yazınca `a`'nın kullanılamaz hale geldiğini
+gördün. Oysa aynı şeyi bir sayıyla yaparsan hiçbir şey olmaz; iki değişken
+de çalışmaya devam eder. Bu farkı bilmezsen derleyicinin neden bazen hata verip
+bazen vermediğini anlayamazsın. Fark tipten gelir: bazı tipler atanınca
+kopyalanır, bazıları taşınır (move).
+
+## Nasıl
+
+Küçük, boyutu sabit ve tamamı stack'te duran tipler `Copy` tipidir. Stack,
+fonksiyonların yerel değişkenlerini tuttuğu, çok hızlı çalışan bellek
+alanıdır. Buradaki bir değeri kopyalamak birkaç baytı çoğaltmaktan ibarettir;
+Rust bunu sana sormadan yapar ve eski değişken geçerli kalır. Şimdiye kadar
+gördüğün `Copy` tipleri: tam sayılar (`i32`, `u8`, `usize`...), ondalıklı
+sayılar (`f32`, `f64`), `bool`, `char`, bir de içindeki her şey `Copy` olan
+tuple'lar ve diziler.
+
+```rust
+let x = 5;
+let y = x; // x kopyalandı
+println!("{} {}", x, y); // ikisi de geçerli
+```
+
+`String` ise `Copy` değildir: metni heap'te durur ve onu kopyalamak pahalı
+olabilir. Bu yüzden atama move olur. Bir `String`'i fonksiyona verdikten
+sonra yine kullanmak istiyorsan fonksiyon onu geri döndürmelidir. Yanında
+başka bir değer de döndürmek için tuple kullanırsın:
+
+```rust
+fn say(s: String) -> (String, usize) {
+    let n = s.len();
+    (s, n)
+}
+```
+
+Sıraya dikkat et: önce `s.len()` hesaplanıyor, sonra `s` tuple'ın içine
+taşınıyor. `(s, s.len())` yazsaydın `s` önce taşınır, `s.len()` taşınmış
+değeri kullanmaya çalışır ve derleme hatası alırdın.
+
+## Dikkat
+
+- `Copy` ile `clone` aynı şey değil. `Copy` kendiliğinden olur ve ucuzdur.
+  `.clone()`'u sen yazarsın; heap'teki veriyi de kopyaladığı için pahalı
+  olabilir.
+- İçinde `Copy` olmayan bir parça bulunan tuple da `Copy` değildir:
+  `(i32, String)` atanınca taşınır.
+- Heap'te veri tutan tipler `Copy` olamaz, çünkü silinirken (drop) o belleği
+  geri vermeleri gerekir. İki kopya olsaydı aynı bellek iki kez geri verilirdi.
+- Değeri her seferinde verip geri almak yorucudur. Sonraki derste referansları
+  öğrenince buna gerek kalmayacak.
+'''
+example = '''
+fn say(s: String) -> (String, usize) {
+    let n = s.len();
+    (s, n)
+}
+
+fn main() {
+    let x = 5;
+    let y = x;
+    println!("x={} y={}", x, y);
+
+    let s = String::from("rust");
+    let (s, n) = say(s);
+    println!("{} uzunluk {}", s, n);
+}
+'''
+
+[exercise]
+prompt = '''`uzunluk_ve_sahip(s: String) -> (String, usize)` fonksiyonunu yaz. Fonksiyon bir `String` alır; aynı `String`'i ve onun bayt cinsinden uzunluğunu (`len()`) bir tuple içinde geri döndürür. Böylece çağıran taraf metni kullanmaya devam edebilir. Örnek: `"merhaba"` → `("merhaba", 7)`.'''
+starter = '''
+fn uzunluk_ve_sahip(s: String) -> (String, usize) {
+    todo!()
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn geri_verir() {
+        let (s, n) = uzunluk_ve_sahip(String::from("merhaba"));
+        assert_eq!(n, 7);
+        assert_eq!(s, "merhaba");
+    }
+    #[test]
+    fn bos() {
+        let (s, n) = uzunluk_ve_sahip(String::new());
+        assert_eq!(n, 0);
+        assert_eq!(s, "");
+    }
+}
+'''
+solution = '''
+fn uzunluk_ve_sahip(s: String) -> (String, usize) {
+    let n = s.len();
+    (s, n)
+}
+'''
+points = 30

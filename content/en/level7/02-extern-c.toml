@@ -1,0 +1,75 @@
+title = "extern \"C\" and FFI"
+body_md = '''
+## Why
+
+The operating system and countless libraries are written in C. You may want to call them from Rust, or hand them a function you wrote in Rust. Calling a function written in another language is called FFI (foreign function interface). Both sides must use the same ABI: the calling rules of compiled code, such as where the arguments go and where the result is read from. Almost everyone uses the C ABI as the common language, and `extern "C"` selects it.
+
+## How
+
+It works in two directions. To use a function that already exists outside, declare its signature in an `extern "C"` block:
+
+```rust
+use std::os::raw::{c_char, c_int};
+extern "C" {
+    fn abs(x: c_int) -> c_int;
+    fn strlen(s: *const c_char) -> usize;
+}
+```
+
+You can only call these inside `unsafe`, because the compiler cannot check that your signature matches the real one.
+
+In the other direction, to make a Rust function callable with the C ABI, put `extern "C"` in front of it:
+
+```rust
+extern "C" fn add(a: i32, b: i32) -> i32 { a + b }
+```
+
+From Rust you call it like any other function. You can also store it in a variable of type `extern "C" fn(i32, i32) -> i32`; that is how a callback (a function to be called later) is passed to a C library.
+
+Text needs care. A C string ends with a zero byte; a `&str` has none. `CString::new(s)` makes a copy with the zero byte added, and returns `Err` if the text has a zero byte in the middle. `c.as_ptr()` gives the pointer to pass to C.
+
+Here too, hide the `unsafe` call inside a safe function such as `fn c_len(s: &str) -> usize`.
+
+## Watch out
+
+- If your signature does not match the real C one, the result is UB and the compiler won't warn you.
+- The pointer from `as_ptr()` is valid only until the `CString` is dropped. Keep the `CString` in a variable.
+- `abs(i32::MIN)` is undefined in C because the result does not fit in an `i32`. Handle that input separately in your safe function.
+- A panic inside an `extern "C" fn` cannot cross into C; the program aborts. Report errors through the return value.
+- This lesson compiles no C files. We only use functions already in the C standard library (libc) and `extern "C" fn`s written in Rust.
+'''
+example = '''
+use std::ffi::CString;
+use std::os::raw::{c_char, c_int};
+
+extern "C" {
+    fn abs(x: c_int) -> c_int;
+    fn strlen(s: *const c_char) -> usize;
+}
+
+extern "C" fn add(a: i32, b: i32) -> i32 {
+    a + b
+}
+
+fn safe_abs(x: i32) -> i32 {
+    if x == i32::MIN {
+        return i32::MAX;
+    }
+    unsafe { abs(x) }
+}
+
+fn c_len(s: &str) -> usize {
+    let c = CString::new(s).expect("the text must not contain a zero byte");
+    unsafe { strlen(c.as_ptr()) }
+}
+
+fn main() {
+    let f: extern "C" fn(i32, i32) -> i32 = add;
+    println!("add = {}", f(2, 3));
+    println!("abs = {}", safe_abs(-42));
+    println!("strlen = {}", c_len("hello"));
+}
+'''
+
+[exercise]
+prompt = "Write `extern \"C\" fn saturating_add_i32(a: i32, b: i32) -> i32`. It returns `a + b`, but when the sum does not fit in an `i32` it stays at the limit instead of panicking: `i32::MAX` if the sum is too large, `i32::MIN` if it is too small. Examples: `(2, 3)` → `5`, `(i32::MAX, 1)` → `i32::MAX`, `(i32::MIN, -1)` → `i32::MIN`. Hint: the integer method `a.saturating_add(b)` does exactly this. You can also write it yourself: convert both numbers with `as i64`, add them, then compare the sum against the limits."

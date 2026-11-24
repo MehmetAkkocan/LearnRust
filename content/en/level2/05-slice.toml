@@ -1,0 +1,119 @@
+title = "Slices"
+body_md = '''
+## Why
+
+Sometimes you need only part of a text or an array, not all of it: the first
+word, the three elements in the middle. Copying that part into a new value is
+wasted work. A slice is a reference to a section of data that already exists:
+it makes no copy and does not own the data. Because it is a reference, the
+borrow rules apply to it as well. As long as you are using the slice, the
+compiler won't let you change the original data, so the part the slice points
+to can't disappear from under you.
+
+## How
+
+To take a slice, write `&` and a range in square brackets. The start of the
+range is included, the end is not:
+
+```rust
+let s = String::from("café menu");
+let first = &s[0..5]; // "café"
+let head = &s[..3];   // "caf": from the start
+let tail = &s[6..];   // "menu": to the end
+```
+
+A slice of a text has the type `&str`. A slice of an array has the type
+`&[T]`: if `numbers` is `[1, 2, 3, 4, 5]`, then `&numbers[1..4]` is a
+`&[i32]` pointing to the elements `[2, 3, 4]`.
+
+Functions can return slices. This one gives you the first word of a text:
+
+```rust
+fn first_word(s: &str) -> &str {
+    for (i, c) in s.char_indices() {
+        if c == ' ' {
+            return &s[..i];
+        }
+    }
+    s
+}
+```
+
+`s.char_indices()` walks through the text one character at a time and gives
+you two things at each step: the byte position where the character starts
+(`i`) and the character itself (`c`). At the first space we return everything
+up to that position. If there is no space, the whole text is returned.
+
+The returned `&str` points into the text that came in as the parameter. How
+long a reference stays valid is called its lifetime. Since there is only one
+reference parameter here, the compiler works out on its own that the returned
+reference stays valid as long as that parameter does; you don't have to write
+anything extra.
+
+## Watch out
+
+- The numbers in a range are BYTE positions, not character counts. Letters
+  like `é`, `ö`, `ş` and `ü` take 2 bytes. If you cut through the middle of a
+  letter, the program stops with a panic: for the `s` above, `&s[..4]` lands
+  inside `é`, and the message starts with
+  `byte index 4 is not a char boundary`.
+- A range that runs past the end of the text or array also panics. Instead of
+  counting positions by hand, use the ones `char_indices()` gives you; they
+  always fall at the start of a character.
+- You can't change the original `String` while you are still using a slice of
+  it; calling `s.clear()` in between, for example, is a compile error.
+'''
+example = '''
+fn first_word(s: &str) -> &str {
+    for (i, c) in s.char_indices() {
+        if c == ' ' {
+            return &s[..i];
+        }
+    }
+    s
+}
+
+fn main() {
+    let s = String::from("café menu");
+    println!("{}", first_word(&s));
+    println!("{}", first_word("single"));
+
+    let numbers = [1, 2, 3, 4, 5];
+    let part = &numbers[1..4];
+    println!("{:?}", part);
+}
+'''
+
+[exercise]
+prompt = '''Write `first_word(s: &str) -> &str`. The function returns the part of the text up to the first space as a slice; if the text has no space, it returns the whole text. Examples: `"hello world"` → `"hello"`, `"single"` → `"single"`, `" leading"` → `""` (if the text starts with a space, the result is the empty text).'''
+starter = '''
+fn first_word(s: &str) -> &str {
+    todo!()
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn first() {
+        assert_eq!(first_word("hello world"), "hello");
+        assert_eq!(first_word("single"), "single");
+    }
+    #[test]
+    fn empty() {
+        assert_eq!(first_word(""), "");
+        assert_eq!(first_word(" leading"), "");
+    }
+}
+'''
+solution = '''
+fn first_word(s: &str) -> &str {
+    for (i, c) in s.char_indices() {
+        if c == ' ' {
+            return &s[..i];
+        }
+    }
+    s
+}
+'''

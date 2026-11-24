@@ -1,0 +1,115 @@
+id = "2-04"
+title = "&mut ve Borrow Kuralları"
+read_points = 10
+body_md = '''
+## Neden
+
+`&` ile aldığın referans yalnızca okur. Bazen ödünç aldığın değeri
+değiştirmen de gerekir: bir sayacı artırmak, bir metnin sonuna ekleme yapmak
+gibi. Bunun için değiştirilebilir referans, yani `&mut` var. Yalnız burada
+bir tehlike doğar: kodun bir yeri değeri okurken başka bir yeri onu
+değiştirirse, okuyan taraf yarım ya da artık geçersiz bir veri görebilir. Bu
+durum aynı anda çalışan iki kod parçası arasında yaşanırsa adına data race
+denir. Rust bu hataları iki kuralla, daha derleme zamanında yakalar.
+
+## Nasıl
+
+Üç yerde `mut` yazarsın: değişken `let mut` ile tanımlanır, referans
+`&mut x` ile alınır, parametrenin tipi `&mut T` olur. Referansın gösterdiği
+değeri değiştirmek için başına `*` koyarsın:
+
+```rust
+fn arttir(n: &mut i32) {
+    *n += 1;
+}
+
+let mut x = 5;
+arttir(&mut x); // x artık 6
+```
+
+Borrow kuralları şunlar:
+
+- Bir değere aynı anda ya istediğin kadar `&` referansı ya da tek bir `&mut`
+  referansı olabilir. İkisi birlikte olamaz.
+- Referans her zaman geçerli bir değeri gösterir; silinmiş bir değere
+  referans kalamaz.
+
+```rust
+let mut s = String::from("a");
+let r1 = &mut s;
+// let r2 = &mut s; // HATA: s zaten r1'e ödünç verilmiş
+r1.push('b');
+```
+
+Metot çağırırken `*` yazmana gerek yok; `r1.push('b')` doğrudan çalışır.
+
+"Aynı anda" sözü, referansın son kullanıldığı satıra kadar olan süreyi
+anlatır. `r1`'i son kez kullandıktan sonra yeni bir referans alabilirsin;
+bloğun bitmesini beklemen gerekmez.
+
+## Dikkat
+
+En sık yapılan hata, `let mut kopya = *n;` yazıp `kopya`'yı değiştirmektir.
+`i32` bir `Copy` tipi olduğu için `kopya` ayrı bir sayıdır; asıl değer olduğu
+gibi kalır. Doğrusu doğrudan `*n += adim;` yazmaktır.
+
+İkinci `&mut` referansını erken alırsan derleyici şunu yazar:
+
+```
+cannot borrow `s` as mutable more than once at a time
+```
+
+Yani "`s` şu anda başka bir `&mut` referansına ödünç verilmiş". Önce ilk
+referansla işini bitir, sonra ikincisini al.
+
+Bir `&` referansını hâlâ kullanıyorken `&mut` almak da hatadır; bu kez mesaj
+`cannot borrow ... as mutable because it is also borrowed as immutable` olur.
+'''
+example = '''
+fn arttir(n: &mut i32, adim: i32) {
+    *n += adim;
+}
+
+fn main() {
+    let mut x = 5;
+    arttir(&mut x, 3);
+    println!("x = {}", x);
+
+    let mut s = String::from("a");
+    {
+        let r = &mut s;
+        r.push('b');
+    }
+    let r2 = &s;
+    println!("{} {}", r2, x);
+}
+'''
+
+[exercise]
+prompt = "Bu kod derleniyor ama yanlış çalışıyor; düzelt. `arttir(n: &mut i32, adim: i32)` fonksiyonu, `n`'in gösterdiği sayıyı `adim` kadar artırmalı: `x` 5 iken `arttir(&mut x, 3)` çağrısından sonra `x` 8 olmalı. Şu anki kod sayının bir kopyasını artırıyor, bu yüzden çağıranın değişkeni hiç değişmiyor."
+starter = '''
+fn arttir(n: &mut i32, adim: i32) {
+    let mut kopya = *n;
+    kopya += adim;
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn degistirir() {
+        let mut x = 5;
+        arttir(&mut x, 3);
+        assert_eq!(x, 8);
+        arttir(&mut x, -10);
+        assert_eq!(x, -2);
+    }
+}
+'''
+solution = '''
+fn arttir(n: &mut i32, adim: i32) {
+    *n += adim;
+}
+'''
+points = 30

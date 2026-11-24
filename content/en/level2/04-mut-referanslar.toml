@@ -1,0 +1,113 @@
+title = "&mut and the Borrow Rules"
+body_md = '''
+## Why
+
+A reference taken with `&` can only read. Sometimes you also need to change
+the value you borrowed: bump a counter, append to a text. For that there is
+the mutable reference, `&mut`. But it brings a danger: if one part of the
+code reads a value while another part changes it, the reader may see data
+that is half-updated or no longer valid. When this happens between two pieces
+of code running at the same time, it is called a data race. Rust catches
+these bugs with two rules, at compile time.
+
+## How
+
+You write `mut` in three places: the variable is declared with `let mut`, the
+reference is taken with `&mut x`, and the parameter type is `&mut T`. To
+change the value the reference points to, put `*` in front of it:
+
+```rust
+fn increment(n: &mut i32) {
+    *n += 1;
+}
+
+let mut x = 5;
+increment(&mut x); // x is now 6
+```
+
+The borrow rules are:
+
+- At any one time a value can have either any number of `&` references or a
+  single `&mut` reference. Never both.
+- A reference always points to a valid value; no reference can be left
+  pointing to a dropped value.
+
+```rust
+let mut s = String::from("a");
+let r1 = &mut s;
+// let r2 = &mut s; // ERROR: s is already lent to r1
+r1.push('b');
+```
+
+You don't need `*` to call a method; `r1.push('b')` just works.
+
+"At any one time" means up to the line where the reference is last used.
+After the last use of `r1` you can take a new reference; you don't have to
+wait for the block to end.
+
+## Watch out
+
+The most common mistake is writing `let mut copy = *n;` and then changing
+`copy`. Because `i32` is a `Copy` type, `copy` is a separate number and the
+original stays as it was. The right way is to write `*n += step;` directly.
+
+If you take a second `&mut` reference too early, the compiler says:
+
+```
+cannot borrow `s` as mutable more than once at a time
+```
+
+In other words, "`s` is currently lent to another `&mut` reference". Finish
+with the first reference, then take the second.
+
+Taking a `&mut` while you are still using a `&` reference is an error too;
+this time the message is
+`cannot borrow ... as mutable because it is also borrowed as immutable`.
+'''
+example = '''
+fn increment(n: &mut i32, step: i32) {
+    *n += step;
+}
+
+fn main() {
+    let mut x = 5;
+    increment(&mut x, 3);
+    println!("x = {}", x);
+
+    let mut s = String::from("a");
+    {
+        let r = &mut s;
+        r.push('b');
+    }
+    let r2 = &s;
+    println!("{} {}", r2, x);
+}
+'''
+
+[exercise]
+prompt = "This code compiles but does the wrong thing; fix it. `increment(n: &mut i32, step: i32)` should increase the number `n` points to by `step`: with `x` at 5, after `increment(&mut x, 3)` `x` should be 8. The current code increases a copy of the number, so the caller's variable never changes."
+starter = '''
+fn increment(n: &mut i32, step: i32) {
+    let mut copy = *n;
+    copy += step;
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn changes_the_value() {
+        let mut x = 5;
+        increment(&mut x, 3);
+        assert_eq!(x, 8);
+        increment(&mut x, -10);
+        assert_eq!(x, -2);
+    }
+}
+'''
+solution = '''
+fn increment(n: &mut i32, step: i32) {
+    *n += step;
+}
+'''

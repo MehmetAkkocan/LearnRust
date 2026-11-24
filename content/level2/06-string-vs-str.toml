@@ -1,0 +1,117 @@
+id = "2-06"
+title = "String ve &str"
+read_points = 10
+body_md = '''
+## Neden
+
+Rust'ta metin için iki tip var: `String` ve `&str`. İlk seviyeden beri
+ikisini de kullanıyorsun; artık aradaki farkı anlayacak kadar şey biliyorsun.
+Fark ownership'te: `String` metnin sahibidir, `&str` başkasına ait bir metne
+bakan referanstır. Hangisini nerede kullanacağını bilirsen gereksiz kopya
+yapmazsın ve "expected `String`, found `&str`" gibi hataları hemen çözersin.
+
+## Nasıl
+
+- `String`: metni heap'te tutar ve onun sahibidir. Büyüyebilir, değişebilir.
+- `&str`: bir metnin tamamını ya da bir parçasını gösteren slice. Yalnızca
+  okur; metnin sahibi değildir.
+
+Kodun içine `"merhaba"` diye yazdığın metinler `&str` tipindedir. Bir
+`&str`'den `String` üretmek için `String::from(...)`, `.to_string()` ya da
+`format!` kullanırsın. Tersi daha kolay: `String`'in önüne `&` koyman yeter.
+
+```rust
+let a: &str = "merhaba";
+let mut b: String = a.to_string();
+b.push_str(" dünya");
+let c: &str = &b; // String -> &str
+```
+
+Fonksiyon yazarken şu iki kural işini görür:
+
+- Metni yalnızca okuyacaksan parametreyi `&str` yap. O zaman fonksiyona hem
+  `"..."` hem `&String` verilebilir; Rust `&String`'i kendiliğinden `&str`'ye
+  çevirir (buna deref coercion denir).
+- Fonksiyon yeni bir metin üretiyorsa `String` döndür; yeni metnin bir sahibi
+  olmalı.
+
+Bir metnin karakterlerini sırayla gezmek için `for c in s.chars()` yazarsın;
+her `c` bir `char`'dır. Tek bir `char`'ı büyük harfe çevirmek biraz
+dolambaçlıdır, çünkü bazı harflerin büyüğü birden fazla karakterdir
+(`ß` → `SS`). Bu yüzden `c.to_uppercase()` tek bir `char` değil, karakterleri
+sırayla veren bir iterator döndürür. Onu `collect` ile `String`'e çevirip
+sonuca eklersin:
+
+```rust
+let buyuk = c.to_uppercase().collect::<String>();
+sonuc.push_str(&buyuk);
+```
+
+Bir karakteri olduğu gibi eklemek için `sonuc.push(c)` yeter.
+
+## Dikkat
+
+- `"a" + "b"` derlenmez. `+` işaretinin solunda bir `String` olmalı:
+  `String::from("a") + "b"`. Bu işlem soldaki `String`'i tüketir (move);
+  sonucu yeni bir değişkende tutarsın.
+- Dönüş tipi `String` olan bir fonksiyondan `"..."` döndüremezsin;
+  `"...".to_string()` yaz.
+- Parametreyi gereksiz yere `String` yaparsan çağıran taraf değerini sana
+  vermek ya da `clone` etmek zorunda kalır. Yalnızca okuyacaksan `&str` al.
+'''
+example = '''
+fn selamla(isim: &str) -> String {
+    format!("Merhaba, {}!", isim)
+}
+
+fn main() {
+    let literal = "Ayşe";
+    let sahipli = String::from("Mehmet");
+    println!("{}", selamla(literal));
+    println!("{}", selamla(&sahipli));
+
+    let mut b = literal.to_string();
+    b.push_str(" Hanım");
+    println!("{}", b);
+}
+'''
+
+[exercise]
+prompt = '''`bas_harf_buyut(s: &str) -> String` fonksiyonunu yaz. Fonksiyon metnin yalnızca ilk karakterini büyük harfe çevirir, gerisine dokunmaz ve sonucu yeni bir `String` olarak döndürür. Boş metin için boş `String` döndürür. Örnekler: `"rust"` → `"Rust"`, `"Rust"` → `"Rust"`, `""` → `""`.'''
+starter = '''
+fn bas_harf_buyut(s: &str) -> String {
+    todo!()
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn buyutur() {
+        assert_eq!(bas_harf_buyut("rust"), "Rust");
+        assert_eq!(bas_harf_buyut("Rust"), "Rust");
+        assert_eq!(bas_harf_buyut("a"), "A");
+    }
+    #[test]
+    fn bos() {
+        assert_eq!(bas_harf_buyut(""), "");
+    }
+}
+'''
+solution = '''
+fn bas_harf_buyut(s: &str) -> String {
+    let mut result = String::new();
+    let mut first = true;
+    for c in s.chars() {
+        if first {
+            result.push_str(&c.to_uppercase().collect::<String>());
+            first = false;
+        } else {
+            result.push(c);
+        }
+    }
+    result
+}
+'''
+points = 30

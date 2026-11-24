@@ -1,0 +1,151 @@
+id = "6-02"
+title = "Arc ve Mutex: Veriyi Thread'ler Arasında Paylaşmak"
+read_points = 10
+body_md = '''
+## Neden
+
+Bir programın içinde aynı anda birden çok iş yürütebilirsin; bunların
+her birine thread denir. İki thread aynı veriye aynı anda dokunur ve en
+az biri yazıyorsa sonuç bozulabilir. Buna data race denir. Rust'ta data
+race'e yol açacak kod derlenmez.
+
+`Rc` ile `RefCell` bu iş için yapılmamıştır; ikisi de tek thread
+varsayar. Thread'ler arasında onların yerini şu iki tip alır:
+
+- `Arc<T>` (atomic reference counted): `Rc`'nin thread'ler arasında
+  güvenli olanı. İki thread sayacı aynı anda değiştirse bile sayaç
+  bozulmaz.
+- `Mutex<T>`: veriyi bir lock'un arkasına koyar. Veriye ulaşmak için
+  önce lock'u alırsın; sen bırakana kadar diğer thread'ler bekler.
+
+## Nasıl
+
+Alışılmış kalıp `Arc<Mutex<T>>`. Her thread için `Arc::clone` ile yeni
+bir sahip çıkarırsın, thread kendi `Arc`'ını alır. Thread'i nasıl
+başlatacağını bir sonraki derste göreceksin; şimdilik lock'a bak.
+
+```rust
+use std::sync::{Arc, Mutex};
+
+let counter = Arc::new(Mutex::new(0));
+let c = Arc::clone(&counter);
+// başka bir thread'in içinde:
+*c.lock().unwrap() += 1;
+```
+
+- `lock()` lock boşalana kadar bekler, sonra bir
+  `Result<MutexGuard<T>, _>` döndürür. `unwrap()` ile içindeki guard'ı
+  alırsın.
+- Guard, lock'un sende olduğunu gösteren değerdir. `*guard` ile veriye
+  ulaşırsın. Guard silinince (drop), yani çoğunlukla kapsam bitince,
+  lock kendiliğinden bırakılır; ayrıca "bırak" demen gerekmez.
+- Sonucu okumadan önce thread'lerin bitmesini `join` ile beklersin.
+  Yoksa işi yarım kalmış bir değer okuyabilirsin.
+
+## Dikkat
+
+- Lock'u gerektiğinden uzun tutma. Guard'ı tek satırda ya da küçük bir
+  blokta kullan ki diğer thread'ler boşuna beklemesin.
+- İki ayrı lock'u biri A-B, öbürü B-A sırasıyla alan iki thread
+  birbirini sonsuza kadar bekleyebilir. Buna deadlock denir. Lock'ları
+  her yerde aynı sırayla al.
+- Aynı thread'de, guard hâlâ dururken aynı mutex'e ikinci kez `lock()`
+  dersen program ya takılıp kalır ya da panic olur.
+- Bir thread lock'u tutarken panic olursa mutex "poisoned" (zehirli)
+  diye işaretlenir ve sonraki `lock()` çağrıları `Err` döndürür.
+  Örneklerdeki `unwrap()` bu durumda panic olur.
+- `Arc<T>` tek başına yalnız okutur. İçindekini değiştirmek için
+  `Mutex` gibi bir sarmalayıcı gerekir.
+'''
+example = '''
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+fn main() {
+    let counter = Arc::new(Mutex::new(0));
+    let mut handles = Vec::new();
+
+    for _ in 0..4 {
+        let c = Arc::clone(&counter);
+        handles.push(thread::spawn(move || {
+            for _ in 0..1000 {
+                *c.lock().unwrap() += 1;
+            }
+        }));
+    }
+
+    for h in handles {
+        h.join().unwrap();
+    }
+
+    println!("Sonuç: {}", *counter.lock().unwrap());
+}
+'''
+
+[exercise]
+prompt = "Bu egzersizde thread'leri testler açıyor; thread açmayı bir sonraki derste öğreneceksin. Sen yalnız lock'u alıp ortak listeye erişen iki fonksiyonu yaz. `add_id(shared, id)`: lock'u al ve `id`'yi ortak listenin sonuna ekle (`push`). `sorted_ids(shared)`: lock'u al ve listenin küçükten büyüğe sıralanmış bir KOPYASINI döndür; ortak listenin kendisi değişmesin. Örnek: ortak liste `[3, 1, 2]` ise `sorted_ids` `[1, 2, 3]` döndürür, ortak liste `[3, 1, 2]` olarak kalır. İpucu: `lock().unwrap()` sana guard'ı verir; kopya için `.clone()`, sıralamak için `.sort()` kullan."
+starter = '''
+use std::sync::{Arc, Mutex};
+
+pub fn add_id(shared: &Arc<Mutex<Vec<u32>>>, id: u32) {
+    todo!()
+}
+
+pub fn sorted_ids(shared: &Arc<Mutex<Vec<u32>>>) -> Vec<u32> {
+    todo!()
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::thread;
+
+    // Her id için bir thread açar; thread'ler add_id ile ortak listeye yazar.
+    fn collect_ids(threads: u32) -> Vec<u32> {
+        let shared = Arc::new(Mutex::new(Vec::new()));
+        let mut handles = Vec::new();
+        for id in 0..threads {
+            let s = Arc::clone(&shared);
+            handles.push(thread::spawn(move || add_id(&s, id)));
+        }
+        for h in handles {
+            h.join().unwrap();
+        }
+        sorted_ids(&shared)
+    }
+
+    #[test]
+    fn id_listesi() {
+        assert_eq!(collect_ids(8), (0..8).collect::<Vec<u32>>());
+    }
+
+    #[test]
+    fn bos() {
+        assert_eq!(collect_ids(0), Vec::<u32>::new());
+    }
+
+    #[test]
+    fn kopya_doner() {
+        let shared = Arc::new(Mutex::new(vec![3, 1]));
+        add_id(&shared, 2);
+        assert_eq!(sorted_ids(&shared), vec![1, 2, 3]);
+        // Ortak liste sıralanmamalı; yalnız kopya sıralanır.
+        assert_eq!(*shared.lock().unwrap(), vec![3, 1, 2]);
+    }
+}
+'''
+solution = '''
+use std::sync::{Arc, Mutex};
+
+pub fn add_id(shared: &Arc<Mutex<Vec<u32>>>, id: u32) {
+    shared.lock().unwrap().push(id);
+}
+
+pub fn sorted_ids(shared: &Arc<Mutex<Vec<u32>>>) -> Vec<u32> {
+    let mut v = shared.lock().unwrap().clone();
+    v.sort();
+    v
+}
+'''
+points = 30

@@ -1,0 +1,158 @@
+id = "4-06"
+title = "Generic ve Trait Bound"
+read_points = 10
+body_md = '''
+## Neden
+
+Bir listedeki en büyük sayıyı bulan `largest_i32` fonksiyonunu yazdın.
+Sonra aynısı `f64` için lazım oldu, sonra `char` için. Üçünün gövdesi
+aynı, yalnızca tipler farklı. Generic ile kodu bir kez yazarsın ve tipin
+yerine `T` gibi bir tip parametresi koyarsın. Derleyici, fonksiyonu hangi
+tiplerle çağırdığına bakar ve her biri için ayrı bir kopya üretir (buna
+monomorphization denir). Yani generic kod, elle yazılmış ayrı fonksiyonlar
+kadar hızlı çalışır.
+
+## Nasıl
+
+Tip parametresini fonksiyon adından sonra `<T>` içinde yazarsın. Derleyici
+`T` hakkında hiçbir şey varsaymaz; `T` değerlerini `>` ile karşılaştırmak
+istiyorsan bunu söylemen gerekir. Buna trait bound denir: "`T`, şu
+trait'leri uygulayan bir tip olmalı".
+
+```rust
+fn largest<T: PartialOrd + Copy>(items: &[T]) -> Option<T> {
+    if items.is_empty() {
+        return None;
+    }
+    let mut best = items[0];
+    for &x in items.iter() {
+        if x > best {
+            best = x;
+        }
+    }
+    Some(best)
+}
+```
+
+- `PartialOrd`: `<` ve `>` ile karşılaştırılabilen tipler. `x > best`
+  bunun sayesinde derlenir.
+- `Copy`: atanınca kopyalanan basit tipler (`i32`, `f64`, `char`...).
+  `let mut best = items[0];` elemanı slice'ın içinden alıp götüremez, ancak
+  kopyalayabilir; bu yüzden gerekir. `for &x` yazımı da referansı açar ve
+  `x`'e elemanın kopyasını verir.
+- Birden çok bound'u `+` ile birleştirirsin.
+
+Struct da generic olabilir:
+
+```rust
+struct Pair<T> {
+    a: T,
+    b: T,
+}
+
+impl<T: PartialOrd + Copy> Pair<T> {
+    fn max(&self) -> T {
+        if self.a > self.b { self.a } else { self.b }
+    }
+}
+```
+
+`Pair { a: 1, b: 2 }` bir `Pair<i32>`, `Pair { a: 1.5, b: 0.2 }` bir
+`Pair<f64>` olur. Bound'lar uzayınca onları `where` ile sona alabilirsin:
+`fn f<T>(x: T) where T: Display + Clone`. Şimdiye kadar kullandığın
+`Vec<T>`, `Option<T>` ve `Result<T, E>` de generic tiplerdir.
+
+## Dikkat
+
+- Bound yazmadan `x > best` dersen derleyici şunu söyler:
+  `binary operation > cannot be applied to type T`. Yani "`T` her tip
+  olabilir, her tip de karşılaştırılamaz". Mesajın altında hangi bound'u
+  eklemen gerektiğini de önerir.
+- Yalnızca gerçekten kullandığın şeyi iste. Her fazladan bound, fonksiyonu
+  kullanabilecek tipleri azaltır. Örneğin `Copy` istediği için bu `largest`
+  bir `String` listesiyle çalışmaz.
+- `impl` bloğunda `T`'yi iki yerde yazarsın: `impl<T> Pair<T>`. İlki "`T`
+  bir tip parametresidir" der, ikincisi onu kullanır. Yalnızca
+  `impl Pair<T>` yazarsan derleyici `T` adında bir tip arar ve bulamaz.
+'''
+example = '''
+use std::fmt::Display;
+
+fn largest<T: PartialOrd + Copy>(items: &[T]) -> Option<T> {
+    if items.is_empty() {
+        return None;
+    }
+    let mut best = items[0];
+    for &x in items.iter() {
+        if x > best {
+            best = x;
+        }
+    }
+    Some(best)
+}
+
+struct Pair<T> {
+    a: T,
+    b: T,
+}
+
+impl<T: PartialOrd + Copy + Display> Pair<T> {
+    fn show_max(&self) -> String {
+        let m = if self.a > self.b { self.a } else { self.b };
+        format!("büyük olan: {}", m)
+    }
+}
+
+fn main() {
+    println!("{:?}", largest(&[3, 9, 4]));
+    println!("{:?}", largest(&[1.5, 0.2]));
+    println!("{:?}", largest::<char>(&[]));
+
+    let p = Pair { a: 10, b: 7 };
+    println!("{}", p.show_max());
+}
+'''
+
+[exercise]
+prompt = "`largest<T: PartialOrd + Copy>(items: &[T]) -> Option<T>` fonksiyonunu yaz: slice'taki en büyük elemanı `Some` içinde döndürsün, slice boşsa `None` döndürsün. Aynı fonksiyon her karşılaştırılabilir tiple çalışmalı. Örnek: `[3, 9, 4]` → `Some(9)`, `['a', 'z', 'm']` → `Some('z')`, boş slice → `None`."
+starter = '''
+fn largest<T: PartialOrd + Copy>(items: &[T]) -> Option<T> {
+    todo!()
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn tam_sayi() {
+        assert_eq!(largest(&[3, 9, 4]), Some(9));
+        assert_eq!(largest(&[-5, -2, -8]), Some(-2));
+    }
+    #[test]
+    fn ondalik_ve_char() {
+        assert_eq!(largest(&[1.5, 0.2, 1.7]), Some(1.7));
+        assert_eq!(largest(&['a', 'z', 'm']), Some('z'));
+    }
+    #[test]
+    fn bos() {
+        let empty: [i32; 0] = [];
+        assert_eq!(largest(&empty), None);
+    }
+}
+'''
+solution = '''
+fn largest<T: PartialOrd + Copy>(items: &[T]) -> Option<T> {
+    if items.is_empty() {
+        return None;
+    }
+    let mut best = items[0];
+    for &x in items.iter() {
+        if x > best {
+            best = x;
+        }
+    }
+    Some(best)
+}
+'''
+points = 30

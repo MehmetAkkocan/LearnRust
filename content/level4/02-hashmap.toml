@@ -1,0 +1,134 @@
+id = "4-02"
+title = "HashMap: Anahtarla Bulmak"
+read_points = 10
+body_md = '''
+## Neden
+
+Elinde isimler ve puanlar var; "Ayşe'nin puanı kaç?" diye soracaksın.
+Bunları bir `Vec`'te tutarsan her soruda listeyi baştan sona taraman
+gerekir. `HashMap<K, V>` tam bu iş içindir: her değeri bir anahtarla
+birlikte saklar, anahtarı verince değeri hemen bulur. İçinde on kayıt da
+olsa on bin kayıt da olsa arama aşağı yukarı aynı sürer. Telefon rehberi
+gibi düşün: isim anahtar, numara değer.
+
+## Nasıl
+
+`HashMap`, `Vec` gibi kendiliğinden gelmez; dosyanın başına
+`use std::collections::HashMap;` yazman gerekir.
+
+```rust
+use std::collections::HashMap;
+
+let mut ages: HashMap<String, u32> = HashMap::new();
+ages.insert("Ayşe".to_string(), 30);
+ages.insert("Can".to_string(), 25);
+
+if let Some(age) = ages.get("Ayşe") {
+    println!("{}", age);
+}
+for (name, age) in ages.iter() {
+    println!("{} -> {}", name, age);
+}
+```
+
+- `insert(anahtar, değer)` kaydı ekler.
+- `get` bir `Option<&V>` döndürür: anahtar varsa `Some(&değer)`, yoksa
+  `None`.
+- `contains_key` anahtar var mı diye bakar. `remove` kaydı siler ve
+  değeri `Option<V>` olarak verir.
+- `len()` ve `is_empty()` burada da var.
+
+Bir şeyi saymak ya da biriktirmek istediğinde `entry` kullanırsın:
+
+```rust
+let mut counts: HashMap<String, usize> = HashMap::new();
+for w in "a b a".split_whitespace() {
+    *counts.entry(w.to_string()).or_insert(0) += 1;
+}
+// counts: "a" -> 2, "b" -> 1
+```
+
+`split_whitespace()` metni boşluklardan böler ve kelimeleri sırayla verir.
+`entry(k).or_insert(0)` şunu yapar: anahtar yoksa onu `0` değeriyle ekler;
+varsa hiçbir şey eklemez. İki durumda da değerin `&mut` referansını verir.
+Baştaki `*` ile o değere ulaşıp `1` artırırsın.
+
+## Dikkat
+
+- `HashMap` kayıtları belli bir sırada tutmaz. `for` ile dolaşırken hangi
+  sırayla geleceklerini bilemezsin; ekleme sırası da korunmaz. Sıralı
+  çıktı lazımsa anahtarları bir `Vec`'e alıp sırala (aşağıdaki örnek bunu
+  yapıyor).
+- Aynı anahtarla ikinci kez `insert` çağırırsan eski değerin yerine yenisi
+  yazılır. `insert` bu durumda `Some(eski_değer)`, anahtar yeniyse `None`
+  döndürür.
+- `ages["Can"]` diye köşeli parantezle de okuyabilirsin, ama anahtar yoksa
+  program panic olur. Emin değilsen `get` kullan.
+- Anahtar olarak verdiğin `String` map'e taşınır (move). Ararken yeni bir
+  `String` üretmene gerek yok; `ages.get("Ayşe")` gibi bir `&str` yeter.
+'''
+example = '''
+use std::collections::HashMap;
+
+fn main() {
+    let text = "elma armut elma kiraz elma armut";
+    let mut counts: HashMap<String, usize> = HashMap::new();
+    for word in text.split_whitespace() {
+        *counts.entry(word.to_string()).or_insert(0) += 1;
+    }
+
+    let mut keys: Vec<&String> = counts.keys().collect();
+    keys.sort();
+    for k in keys {
+        println!("{}: {}", k, counts[k]);
+    }
+
+    println!("kiraz var mı? {}", counts.contains_key("kiraz"));
+    println!("muz: {:?}", counts.get("muz"));
+}
+'''
+
+[exercise]
+prompt = '''`word_count(text: &str) -> HashMap<String, usize>` fonksiyonunu yaz. Metni boşluklardan kelimelere böl, her kelimeyi küçük harfe çevir ve hangi kelimenin kaç kez geçtiğini say. Örnek: `"Rust rust RUST"` için sonuçta tek kayıt olur: `"rust"` → 3. `"a b a"` için `"a"` → 2, `"b"` → 1. Boş metin için boş bir map döndür. İpucu: `w.to_lowercase()` kelimenin küçük harfli halini yeni bir `String` olarak verir (`to_uppercase()`'in tersi).'''
+starter = '''
+use std::collections::HashMap;
+
+fn word_count(text: &str) -> HashMap<String, usize> {
+    todo!()
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn sayar() {
+        let got = word_count("a b a");
+        assert_eq!(got.len(), 2);
+        assert_eq!(got["a"], 2);
+        assert_eq!(got["b"], 1);
+    }
+    #[test]
+    fn kucuk_harf() {
+        let got = word_count("Rust rust RUST");
+        assert_eq!(got.len(), 1);
+        assert_eq!(got["rust"], 3);
+    }
+    #[test]
+    fn bos() {
+        assert!(word_count("").is_empty());
+    }
+}
+'''
+solution = '''
+use std::collections::HashMap;
+
+fn word_count(text: &str) -> HashMap<String, usize> {
+    let mut counts = HashMap::new();
+    for w in text.split_whitespace() {
+        *counts.entry(w.to_lowercase()).or_insert(0) += 1;
+    }
+    counts
+}
+'''
+points = 30

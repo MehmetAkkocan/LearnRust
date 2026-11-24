@@ -1,0 +1,229 @@
+title = "Future, poll and a Tiny Executor"
+body_md = '''
+## Why
+
+Starting a separate thread for every job that has to wait is expensive.
+`async` code takes another route: a job can say "I'm not ready yet", and
+then the thread doesn't sit waiting for it; it moves on to other work.
+
+Underneath this is the `Future` trait. A future is a job whose result
+will be ready later. The code that keeps checking a future until it is
+done is called an executor. In real projects the executor comes from a
+library such as Tokio. But the standard library is enough to see how it
+works; in this lesson you write the smallest one yourself.
+
+## How
+
+The `Future` trait has a single method:
+
+```rust
+fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output>;
+```
+
+To `poll` a future is to ask "are you done?". `Poll::Ready(v)` means the
+job is finished and `v` is the result. `Poll::Pending` means it is not
+finished yet. A future that returns `Pending` takes it upon itself to
+tell the executor through `cx.waker()` once it is ready.
+
+The smallest executor is `block_on`, which keeps polling one future
+until it is done:
+
+```rust
+fn block_on<F: Future>(fut: F) -> F::Output {
+    let mut fut = Box::pin(fut);
+    let waker = Waker::from(Arc::new(NoopWake));
+    let mut cx = Context::from_waker(&waker);
+    loop {
+        if let Poll::Ready(v) = fut.as_mut().poll(&mut cx) {
+            return v;
+        }
+    }
+}
+```
+
+- `Box::pin(fut)` puts the future on the heap and pins it in place
+  (`Pin`). `poll` wants a pinned future.
+- A `Context` needs a `Waker`. You put a type that implements the `Wake`
+  trait into an `Arc` and turn it into a waker with `Waker::from(..)`.
+  The `NoopWake` here does nothing when called.
+- You don't have to write futures by hand. Call an `async fn` or write
+  an `async { ... }` block, and the compiler builds a future for you.
+- `.await` can only be written inside `async`. It means "let this
+  future finish and give me its result".
+
+## Watch out
+
+- A future is lazy: unless someone polls it or awaits it, the code
+  inside never runs.
+- The `block_on` here asks again at once when it gets `Pending` (a busy
+  loop) and keeps the processor busy for nothing. Real executors sleep
+  until the waker is called.
+- That is why a future that returns `Pending` and never calls the waker
+  sleeps forever on a real executor.
+- A pinned future can't be moved elsewhere in memory. To pin one, use
+  `Box::pin` or `std::pin::pin!`.
+'''
+example = '''
+use std::future::Future;
+use std::pin::Pin;
+use std::sync::Arc;
+use std::task::{Context, Poll, Wake, Waker};
+
+struct NoopWake;
+
+impl Wake for NoopWake {
+    fn wake(self: Arc<Self>) {}
+}
+
+// Returns Pending `remaining` times, then becomes ready.
+struct CountDown {
+    remaining: u32,
+}
+
+impl Future for CountDown {
+    type Output = &'static str;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let this = self.get_mut();
+        if this.remaining == 0 {
+            Poll::Ready("done")
+        } else {
+            this.remaining -= 1;
+            cx.waker().wake_by_ref();
+            Poll::Pending
+        }
+    }
+}
+
+fn block_on<F: Future>(fut: F) -> F::Output {
+    let mut fut = Box::pin(fut);
+    let waker = Waker::from(Arc::new(NoopWake));
+    let mut cx = Context::from_waker(&waker);
+    loop {
+        if let Poll::Ready(v) = fut.as_mut().poll(&mut cx) {
+            return v;
+        }
+    }
+}
+
+async fn add(a: i32, b: i32) -> i32 {
+    a + b
+}
+
+fn main() {
+    println!("{}", block_on(CountDown { remaining: 3 }));
+    let total = block_on(async {
+        let x = add(1, 2).await;
+        add(x, 10).await
+    });
+    println!("{}", total);
+}
+'''
+
+[exercise]
+prompt = "Complete the `block_on` function: it takes a future, runs it until it is done and returns its output. The steps: pin the future with `Box::pin`; build a `Waker` from `NoopWake`, and a `Context` from that waker; then `poll` in a loop until you get `Poll::Ready` and return the value that comes with it. `CountDown` and `NoopWake` are already given, you don't have to write them. Example: `block_on(async { 1 + 2 })` → `3`."
+starter = '''
+use std::future::Future;
+use std::pin::Pin;
+use std::sync::Arc;
+use std::task::{Context, Poll, Wake, Waker};
+
+pub struct NoopWake;
+
+impl Wake for NoopWake {
+    fn wake(self: Arc<Self>) {}
+}
+
+// Adds 1 to `polls` on every poll; once `remaining` is zero it returns `polls`.
+pub struct CountDown {
+    pub remaining: u32,
+    pub polls: u32,
+}
+
+impl Future for CountDown {
+    type Output = u32;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let this = self.get_mut();
+        this.polls += 1;
+        if this.remaining == 0 {
+            Poll::Ready(this.polls)
+        } else {
+            this.remaining -= 1;
+            cx.waker().wake_by_ref();
+            Poll::Pending
+        }
+    }
+}
+
+pub fn block_on<F: Future>(fut: F) -> F::Output {
+    todo!()
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ready_at_once() {
+        assert_eq!(block_on(CountDown { remaining: 0, polls: 0 }), 1);
+    }
+
+    #[test]
+    fn three_pending() {
+        assert_eq!(block_on(CountDown { remaining: 3, polls: 0 }), 4);
+    }
+
+    #[test]
+    fn async_block() {
+        let v = block_on(async { 1 + 2 });
+        assert_eq!(v, 3);
+    }
+}
+'''
+solution = '''
+use std::future::Future;
+use std::pin::Pin;
+use std::sync::Arc;
+use std::task::{Context, Poll, Wake, Waker};
+
+pub struct NoopWake;
+
+impl Wake for NoopWake {
+    fn wake(self: Arc<Self>) {}
+}
+
+// Adds 1 to `polls` on every poll; once `remaining` is zero it returns `polls`.
+pub struct CountDown {
+    pub remaining: u32,
+    pub polls: u32,
+}
+
+impl Future for CountDown {
+    type Output = u32;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let this = self.get_mut();
+        this.polls += 1;
+        if this.remaining == 0 {
+            Poll::Ready(this.polls)
+        } else {
+            this.remaining -= 1;
+            cx.waker().wake_by_ref();
+            Poll::Pending
+        }
+    }
+}
+
+pub fn block_on<F: Future>(fut: F) -> F::Output {
+    let mut fut = Box::pin(fut);
+    let waker = Waker::from(Arc::new(NoopWake));
+    let mut cx = Context::from_waker(&waker);
+    loop {
+        if let Poll::Ready(v) = fut.as_mut().poll(&mut cx) {
+            return v;
+        }
+    }
+}
+'''

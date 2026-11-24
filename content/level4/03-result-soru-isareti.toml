@@ -1,0 +1,125 @@
+id = "4-03"
+title = "Result ve ? Operatörü"
+read_points = 10
+body_md = '''
+## Neden
+
+Bazı işler her zaman başarılı olmaz: kullanıcının yazdığı metin sayı
+olmayabilir, açmak istediğin dosya yerinde olmayabilir. Birçok dilde böyle
+durumlarda exception fırlatılır; yakalamayı unutursan program hiç
+beklemediğin bir yerde çöker. Rust'ta hata, fonksiyonun dönüş değerinin
+içindedir: başarısız olabilen fonksiyon `Result<T, E>` döndürür. İmzaya
+bakınca "bu iş ters gidebilir" diye görürsün. İçindeki değere ulaşmak için
+de önce iki durumu birbirinden ayırman gerekir.
+
+## Nasıl
+
+`Result` iki varyantlı bir enum'dur: iş yolunda gittiyse `Ok(değer)`,
+gitmediyse `Err(hata)`.
+
+```rust
+fn parse_age(s: &str) -> Result<u8, std::num::ParseIntError> {
+    s.trim().parse::<u8>()
+}
+
+match parse_age("42") {
+    Ok(age) => println!("yaş {}", age),
+    Err(e) => println!("hata: {}", e),
+}
+```
+
+`parse` bir metni sayıya çevirmeyi dener. Hangi tipe çevireceğini
+söylemelisin: ya `parse::<u8>()` yazarsın ya da `let n: u8 = ...` diye
+değişkenin tipini belirtirsin. `"abc"` sayı olmadığı için, `"300"` de
+`u8`'e sığmadığı için `Err` verir.
+
+Çoğu zaman hatayı kendin çözmezsin, seni çağırana geri verirsin. Bunu `?`
+yapar:
+
+```rust
+fn double_age(s: &str) -> Result<u32, std::num::ParseIntError> {
+    let age = s.trim().parse::<u32>()?;
+    Ok(age * 2)
+}
+```
+
+`?` şöyle çalışır: sonuç `Ok(v)` ise `v`'yi verir ve kod devam eder.
+`Err(e)` ise fonksiyon o satırda biter ve `Err(e)` döndürür.
+
+- `unwrap_or(0)`: `Ok` ise içindeki değeri, `Err` ise verdiğin yedek değeri
+  verir.
+- `is_ok()` ve `is_err()` hangi durumda olduğunu `bool` olarak söyler.
+- `ok_or(hata)` bir `Option`'ı `Result`'a çevirir: `Some(v)` → `Ok(v)`,
+  `None` → `Err(hata)`.
+
+## Dikkat
+
+- `?` yalnızca kendisi de `Result` (ya da `Option`) döndüren bir
+  fonksiyonda yazılabilir, çünkü hata çıkınca fonksiyondan o hatayla
+  dönecektir. `main` içinde kullanacaksan `main`'in dönüş tipini de
+  `Result<(), ParseIntError>` gibi bir `Result` yap.
+- `unwrap()` ve `expect("mesaj")` `Ok` ise değeri verir, `Err` ise programı
+  panic ile durdurur. Deneme kodunda işini görür; gerçek programda yalnızca
+  hata çıkamayacağından emin olduğun yerde kullan.
+- `?` ile ilettiğin hatanın tipi, fonksiyonun döndürdüğü hata tipine
+  uymalı. Hata tipi `ParseIntError` olan bir fonksiyonda başka tipte bir
+  hatayı `?` ile iletirsen kod derlenmez. Farklı hataları tek fonksiyonda
+  toplamayı bir sonraki derste göreceksin.
+- Dönen bir `Result`'ı hiç kullanmazsan derleyici `unused Result that must
+  be used` diye uyarır; hatayı sessizce kaçırman zorlaşır.
+'''
+example = '''
+use std::num::ParseIntError;
+
+fn parse_and_add(a: &str, b: &str) -> Result<i32, ParseIntError> {
+    let x: i32 = a.trim().parse()?;
+    let y: i32 = b.trim().parse()?;
+    Ok(x + y)
+}
+
+fn main() {
+    match parse_and_add("20", " 22 ") {
+        Ok(sum) => println!("Toplam: {}", sum),
+        Err(e) => println!("Hata: {}", e),
+    }
+    match parse_and_add("20", "abc") {
+        Ok(sum) => println!("Toplam: {}", sum),
+        Err(e) => println!("Hata: {}", e),
+    }
+}
+'''
+
+[exercise]
+prompt = '''`parse_and_double(s: &str) -> Result<i32, ParseIntError>` fonksiyonunu yaz. Metnin başındaki ve sonundaki boşlukları at, kalanını `i32`'ye çevir ve sayının iki katını `Ok` içinde döndür. Metin sayıya çevrilemiyorsa `parse`'ın verdiği hatayı `?` ile olduğu gibi ilet. Örnek: `"21"` → `Ok(42)`, `"  -4 "` → `Ok(-8)`, `"abc"` → `Err(...)`.'''
+starter = '''
+use std::num::ParseIntError;
+
+fn parse_and_double(s: &str) -> Result<i32, ParseIntError> {
+    todo!()
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn basari() {
+        assert_eq!(parse_and_double("21"), Ok(42));
+        assert_eq!(parse_and_double("  -4 "), Ok(-8));
+    }
+    #[test]
+    fn hata() {
+        assert!(parse_and_double("abc").is_err());
+        assert!(parse_and_double("").is_err());
+    }
+}
+'''
+solution = '''
+use std::num::ParseIntError;
+
+fn parse_and_double(s: &str) -> Result<i32, ParseIntError> {
+    let n: i32 = s.trim().parse()?;
+    Ok(n * 2)
+}
+'''
+points = 30

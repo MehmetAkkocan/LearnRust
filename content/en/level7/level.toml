@@ -1,0 +1,68 @@
+title = "Senior"
+description = "unsafe and raw pointers, extern \"C\", macro_rules!, performance and measuring, API design, reading compiler errors, and choosing between generics and dyn."
+
+[[quiz.mcq]]
+id = "7-m1"
+q = "What does an `unsafe` block do?"
+choices = [
+  "It turns the borrow checker off completely",
+  "It allows a few extra operations such as dereferencing a raw pointer; you are now responsible for the code being correct",
+  "It makes the code faster by itself",
+  "It prevents panics inside the block",
+]
+
+[[quiz.mcq]]
+id = "7-m2"
+q = "In a `macro_rules!` pattern, which one do you write to capture an expression (for example `2 + 1`)?"
+choices = ["$x:ident", "$x:ty", "$x:expr", "$x:lit_only"]
+
+[[quiz.mcq]]
+id = "7-m3"
+q = "You are going to build a `String` piece by piece and you know roughly how long the result will be. What do you do to reduce the number of allocations?"
+choices = [
+  "I `clone()` every piece before adding it",
+  "I create a new `String` for every piece",
+  "I wrap the result in `Box::new`",
+  "I reserve the space up front with `String::with_capacity`",
+]
+
+[[quiz.mcq]]
+id = "7-m4"
+q = "What is the main benefit of a newtype such as `struct Port(u16);`?"
+choices = [
+  "It separates values that share a type but mean different things; mix them up and the code does not compile",
+  "The value is processed twice as fast at run time",
+  "It prevents traits from being implemented for that type",
+  "It moves the value to the heap by itself",
+]
+
+[[quiz.mcq]]
+id = "7-m5"
+q = "When does the compiler report error E0502?"
+choices = [
+  "When you use a value again after it was moved",
+  "When you leave out a required lifetime in a function that returns a reference",
+  "When you try to borrow the same data with both `&` and `&mut` at the same time",
+  "When you compare two values of different types",
+]
+
+[[quiz.coding]]
+id = "7-q1"
+prompt = "Write `safe_swap(v, i, j)`: it swaps `v[i]` and `v[j]` and returns `true`. If `i` or `j` is outside the slice, it changes nothing and returns `false`. Example: with `[1, 2, 3]`, `safe_swap(&mut v, 0, 2)` → `true` and `v` is now `[3, 2, 1]`; `safe_swap(&mut v, 0, 3)` → `false`. Do the swap with raw pointers: check the bounds first, then call `std::ptr::swap(p.add(i), p.add(j))` in an `unsafe` block; `v.as_mut_ptr()` gives you `p`. Hint: `std::ptr::swap` takes two `*mut T` and swaps the values they point to; it is fine if both point to the same place."
+solution = '''
+fn safe_swap(v: &mut [i32], i: usize, j: usize) -> bool {
+    if i >= v.len() || j >= v.len() {
+        return false;
+    }
+    let p = v.as_mut_ptr();
+    // SAFETY: i and j passed the bounds check, so both pointers are inside the slice.
+    unsafe {
+        std::ptr::swap(p.add(i), p.add(j));
+    }
+    true
+}
+'''
+
+[[quiz.coding]]
+id = "7-q2"
+prompt = "Finish the `map!` macro: `map!{ \"a\" => 1, \"b\" => 2 }` should produce a `HashMap<&str, i32>` holding those two pairs. `map!{}` should give an empty map, and a trailing comma should be accepted too (`map!{ \"x\" => 10, }`). The pattern is ready, but the macro currently returns an empty map without inserting the pairs. Hint: in the produced code, a statement you write inside `$( ... )*` is repeated once for every captured `$k => $v` pair."

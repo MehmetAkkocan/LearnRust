@@ -1,0 +1,173 @@
+id = "5-05"
+title = "Box: Değeri Heap'e Koymak"
+read_points = 10
+body_md = '''
+## Neden
+
+Derleyici her tipin bellekte kaç bayt tuttuğunu derleme zamanında bilmek
+ister. Bazı tiplerde bu hesap çıkmaz. Bir liste düğümü "bir sayı ve
+listenin kalanı" ise tip kendini içerir; boyutu sonsuz olur. `Box<T>` bunu
+çözer: değeri heap'e koyar, stack'te yalnız o değerin adresini (pointer)
+tutar. İçindeki değer ne kadar büyük olursa olsun adresin boyutu aynıdır.
+Aynı sebeple büyük bir değeri `Box` içinde taşımak ucuzdur: yalnız adres
+kopyalanır.
+
+## Nasıl
+
+`Box::new(değer)` değeri heap'e koyar. İçindeki değere `*` ile ulaşırsın:
+
+```rust
+let b = Box::new(5);
+println!("{}", *b + 1); // 6
+```
+
+`Box`, içindeki değerin sahibidir. `b` kapsamdan çıkınca heap'teki değer de
+silinir (drop); elle bir şey yapmazsın.
+
+Kendini içeren tipte "kalan" kısmı `Box` içine alırsın:
+
+```rust
+enum List {
+    Cons(i32, Box<List>),
+    Nil,
+}
+```
+
+`Cons` bir sayıyı ve listenin kalanını tutar; `Nil` listenin bittiğini
+söyler. Böyle bir listeyi `match` ile gezersin. `Cons(v, rest)` deseninde
+`rest` bir `&Box<List>` olur; onu `&List` bekleyen bir fonksiyona doğrudan
+verebilirsin, dönüşümü Rust yapar. Metot çağırırken de `*` yazmana gerek
+yoktur.
+
+`Box`'ın ikinci yaygın kullanımını Seviye 4'ten biliyorsun: trait object.
+`Box<dyn Shape>`, "`Shape` trait'ini uygulayan herhangi bir tip" demektir.
+Bu sayede farklı tipleri aynı `Vec`'e koyabilirsin:
+
+```rust
+let shapes: Vec<Box<dyn Shape>> = vec![Box::new(Square { side: 2.0 })];
+```
+
+## Dikkat
+
+`Box<List>` yerine düz `List` yazarsan derleyici şunu söyler (kendini
+içeren tipin boyutu sonsuz) ve çözüm olarak `Box` önerir:
+
+```text
+error[E0072]: recursive type `List` has infinite size
+```
+
+- `Box`'ı başka bir değişkene atarsan değer taşınır (move); eski değişkeni
+  kullanamazsın.
+- Her değeri `Box`'a koyma. Heap'ten yer almak ve geri vermek zaman alır;
+  boyutu belli, küçük değerler stack'te daha hızlıdır.
+- `dyn Trait` üzerinden metot çağırınca hangi tipin metodunun çalışacağı
+  çalışma zamanında bulunur (dynamic dispatch). Küçük bir maliyeti vardır;
+  çoğu programda fark edilmez.
+'''
+example = '''
+enum List {
+    Cons(i32, Box<List>),
+    Nil,
+}
+
+fn sum(list: &List) -> i32 {
+    match list {
+        List::Cons(v, rest) => v + sum(rest),
+        List::Nil => 0,
+    }
+}
+
+trait Shape {
+    fn area(&self) -> f64;
+}
+
+struct Square {
+    side: f64,
+}
+
+struct Rect {
+    w: f64,
+    h: f64,
+}
+
+impl Shape for Square {
+    fn area(&self) -> f64 {
+        self.side * self.side
+    }
+}
+
+impl Shape for Rect {
+    fn area(&self) -> f64 {
+        self.w * self.h
+    }
+}
+
+fn main() {
+    let list = List::Cons(1, Box::new(List::Cons(2, Box::new(List::Nil))));
+    println!("toplam: {}", sum(&list));
+
+    let shapes: Vec<Box<dyn Shape>> = vec![
+        Box::new(Square { side: 2.0 }),
+        Box::new(Rect { w: 2.0, h: 3.0 }),
+    ];
+    let total: f64 = shapes.iter().map(|s| s.area()).sum();
+    println!("alan: {}", total);
+}
+'''
+
+[exercise]
+prompt = "`List` bir bağlı listedir: `Cons(sayı, kalan)` bir elemanı ve listenin kalanını tutar, `Nil` listenin sonudur. `sum(list)` elemanların toplamını, `len(list)` eleman sayısını döndürsün. Örnek: 1, 2, 3 elemanlı liste için `sum` → `6`, `len` → `3`; `Nil` için ikisi de `0`. İkisini de kendini çağıran (özyinelemeli) fonksiyon olarak yaz: `match` ile `Cons(v, rest)` durumunda kalan liste için aynı fonksiyonu yeniden çağır, `Nil` durumunda `0` döndür."
+starter = '''
+enum List {
+    Cons(i32, Box<List>),
+    Nil,
+}
+
+fn sum(list: &List) -> i32 {
+    todo!()
+}
+
+fn len(list: &List) -> usize {
+    todo!()
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    fn sample() -> List {
+        List::Cons(1, Box::new(List::Cons(2, Box::new(List::Cons(3, Box::new(List::Nil))))))
+    }
+    #[test]
+    fn toplam() {
+        assert_eq!(sum(&sample()), 6);
+        assert_eq!(sum(&List::Nil), 0);
+    }
+    #[test]
+    fn uzunluk() {
+        assert_eq!(len(&sample()), 3);
+        assert_eq!(len(&List::Nil), 0);
+    }
+}
+'''
+solution = '''
+enum List {
+    Cons(i32, Box<List>),
+    Nil,
+}
+
+fn sum(list: &List) -> i32 {
+    match list {
+        List::Cons(v, rest) => v + sum(rest),
+        List::Nil => 0,
+    }
+}
+
+fn len(list: &List) -> usize {
+    match list {
+        List::Cons(_, rest) => 1 + len(rest),
+        List::Nil => 0,
+    }
+}
+'''
+points = 30

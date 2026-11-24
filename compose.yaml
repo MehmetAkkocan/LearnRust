@@ -1,0 +1,26 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Containerfile
+    image: rust-learning-app:latest
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ./data:/app/data:Z
+    mem_limit: 1g
+    cpus: "2"
+    pids_limit: 256
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:size=256m,exec
+    # data/ yazma izni sorunu olursa asagidaki satirin yorumunu kaldirin:
+    # userns_mode: keep-id
+    init: true
+    restart: unless-stopped
+    # Not: Uygulama dis aga ihtiyac duymaz. Ancak ag tamamen kapatilirsa
+    # (network_mode: none) port yayini da calismaz; bu yuzden kapatilmadi.

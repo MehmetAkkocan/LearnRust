@@ -1,0 +1,115 @@
+title = "Option: A Value That May or May Not Be There"
+body_md = '''
+## Why
+
+You're looking for a number in a list. If you find it, you return its
+position; but what if you don't? In many languages you'd get `null` back. The
+trouble is that if you forget to check for `null`, the program crashes while
+it's running, and the compiler gives you no warning beforehand. Rust has no
+`null`. The fact that a value might be missing is carried by the type itself:
+`Option<T>`. It's an enum with two variants that ships with the standard
+library: `Some(value)` when there is a value, `None` when there isn't. To use
+the value inside you first have to ask "is it there?"; if you don't, the code
+doesn't compile.
+
+## How
+
+```rust
+fn find_index(v: &[i32], target: i32) -> Option<usize> {
+    for (i, x) in v.iter().enumerate() {
+        if *x == target {
+            return Some(i);
+        }
+    }
+    None
+}
+```
+
+`v.iter().enumerate()` gives you the elements together with their position:
+`i` is the position, `x` is a reference to the element. If the number is found
+the function returns `Some(i)`; if the loop finishes without finding it,
+`None`.
+
+Here is what you can do with the `Option` you get back (say `r` holds the
+result):
+
+- Write out both cases with `match`:
+  `match r { Some(i) => ..., None => ... }`. The pattern `Some(i)` hands you
+  the value inside under the name `i`.
+- `r.unwrap_or(0)`: you get the value if there is one, otherwise the default
+  you gave.
+- `r.map(|x| x * 2)`: transforms the value if there is one, and leaves `None`
+  as `None`. `|x| x * 2` is a small function written on the spot (a closure);
+  details in Level 5.
+- `r.is_some()` and `r.is_none()`: only check whether it's there, and return a
+  `bool`.
+
+The standard library returns `Option` a lot too. On a slice, `v.first()` gives
+the first element and `v.get(i)` gives the element at position `i`; if there
+is no such element, both return `None`.
+
+## Watch out
+
+- `unwrap()` pulls the value straight out, but if the value is `None` the
+  program stops with a panic. It's fine for quick experiments; in real code
+  use `match` or `unwrap_or`.
+- `Option<i32>` and `i32` are different types. `Some(5) + 1` doesn't compile;
+  you have to get the value out first.
+- If your function returns `Option<i32>`, you can't return a plain `5`; you
+  have to write `Some(5)`. Otherwise the compiler says
+  `` expected `Option<i32>`, found integer ``.
+- `Some` and `None` are available everywhere; there's no need to write the
+  long form `Option::Some`.
+'''
+example = '''
+fn find_index(v: &[i32], target: i32) -> Option<usize> {
+    for (i, x) in v.iter().enumerate() {
+        if *x == target {
+            return Some(i);
+        }
+    }
+    None
+}
+
+fn main() {
+    let data = [10, 20, 30];
+    match find_index(&data, 20) {
+        Some(i) => println!("found at position {}", i),
+        None => println!("not there"),
+    }
+    // 99 is not in the list; we get 0 in place of None
+    let missing = find_index(&data, 99).unwrap_or(0);
+    println!("default when not found: {}", missing);
+    let doubled = Some(21).map(|x| x * 2);
+    println!("{:?}", doubled);
+    println!("{:?}", data.first());
+}
+'''
+
+[exercise]
+prompt = "Write three functions. `safe_div(a, b)` returns `None` if `b` is zero and `Some(a / b)` otherwise; e.g. `safe_div(10, 2)` -> `Some(5)`, `safe_div(7, 0)` -> `None`. `first_even(v)` returns the first even number in the slice inside `Some`, or `None` if there is no even number; e.g. `[1, 3, 4, 6]` -> `Some(4)`. `double_opt(o)` returns twice the value inside `Some` if there is a value, and `None` if it is `None`; e.g. `Some(4)` -> `Some(8)`. Hint: `for x in v` walks the slice from start to end; `x` is a `&i32`, so write `*x` for the number itself."
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn division() {
+        assert_eq!(safe_div(10, 2), Some(5));
+        assert_eq!(safe_div(7, 0), None);
+    }
+
+    #[test]
+    fn first_even_number() {
+        assert_eq!(first_even(&[1, 3, 4, 6]), Some(4));
+        assert_eq!(first_even(&[1, 3, 5]), None);
+        assert_eq!(first_even(&[]), None);
+    }
+
+    #[test]
+    fn doubles() {
+        assert_eq!(double_opt(Some(4)), Some(8));
+        assert_eq!(double_opt(None), None);
+    }
+}
+'''

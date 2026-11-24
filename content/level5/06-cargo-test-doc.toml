@@ -1,0 +1,146 @@
+id = "5-06"
+title = "Test ve Belge: cargo test, cargo doc"
+read_points = 10
+body_md = '''
+## Neden
+
+Yazdığın kodun doğru çalıştığını nereden biliyorsun? Her değişiklikten
+sonra elle denemek yorar, bir gün de unutulur. Test, bu denemeyi koda
+dökmektir: bir kez yazarsın, sonra tek komutla hepsini yeniden
+çalıştırırsın. Rust'ta bunun için ek bir şey kurmazsın; test aracı da
+belge aracı da `cargo` ile gelir.
+
+## Nasıl
+
+Testler genelde sınadıkları kodla aynı dosyada, ayrı bir modülde durur:
+
+```rust
+pub fn add(a: i32, b: i32) -> i32 {
+    a + b
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn adds() {
+        assert_eq!(add(2, 3), 5);
+    }
+}
+```
+
+- `#[cfg(test)]`: bu modül yalnız test sırasında derlenir; normal programa
+  girmez.
+- `use super::*;`: bir üst modüldeki her şeyi içeri alır; böylece doğrudan
+  `add` yazabilirsin.
+- `#[test]`: fonksiyonu test olarak işaretler. Fonksiyon panic olmadan
+  biterse test geçer.
+
+Kontrol için üç macro var: `assert!(koşul)`, `assert_eq!(a, b)` (eşit
+olmalı), `assert_ne!(a, b)` (farklı olmalı). Beklenen tutmazsa panic olur
+ve test başarısız sayılır.
+
+`cargo test` bütün testleri çalıştırır. `cargo test adds` yalnız adında
+`adds` geçenleri çalıştırır.
+
+Belge yorumu `///` ile yazılır ve altındaki öğeyi anlatır.
+`cargo doc --open` bu yorumlardan bir HTML sayfası üretip tarayıcıda açar.
+Yorumun içine koyduğun kod bloğu da bir testtir (doc test): `cargo test`
+onu derleyip çalıştırır. Belgedeki örnek eskirse böylece haberin olur.
+
+```rust
+/// İki sayıyı toplar.
+///
+/// ```
+/// assert_eq!(mycrate::add(1, 2), 3);
+/// ```
+pub fn add(a: i32, b: i32) -> i32 { a + b }
+```
+
+## Dikkat
+
+- `#[test]` yazmayı unutursan fonksiyon test sayılmaz ve hiç çalışmaz.
+  Çıktıdaki test sayısına göz at.
+- Doc test, crate'ini dışarıdan kullanan biri gibi derlenir. Bu yüzden
+  fonksiyonu crate adıyla çağırırsın (`mycrate::add`) ve fonksiyon `pub`
+  olmalıdır. Doc test'ler yalnız kütüphane crate'lerinde çalışır.
+- Testler aynı anda çalışır ve sıraları belli değildir. Aynı dosyaya yazan
+  ya da ortak bir değişkene güvenen testler birbirini bozar.
+- Bir fonksiyonun panic olmasını bekliyorsan teste `#[should_panic]` ekle;
+  o zaman test, panic olursa geçer.
+'''
+example = '''
+/// Bir yüzdeyi 0 ile 100 arasına sıkıştırır.
+///
+/// # Örnek
+/// ```
+/// assert_eq!(mycrate::clamp_percent(150), 100);
+/// ```
+pub fn clamp_percent(v: i32) -> i32 {
+    v.max(0).min(100)
+}
+
+fn main() {
+    println!("{}", clamp_percent(-20));
+    println!("{}", clamp_percent(55));
+    println!("{}", clamp_percent(150));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn clamps_both_ends() {
+        assert_eq!(clamp_percent(-5), 0);
+        assert_eq!(clamp_percent(150), 100);
+        assert_eq!(clamp_percent(50), 50);
+    }
+}
+'''
+
+[exercise]
+prompt = "Aşağıdaki iki fonksiyon derleniyor ama yanlış çalışıyor; ikisini de düzelt. `clamp_percent(v)` değeri 0 ile 100 arasına çekmeli: 0'dan küçükse `0`, 100'den büyükse `100`, aradaysa kendisi. Örnek: `-5` → `0`, `150` → `100`, `50` → `50`. Şu anki hali negatif sayıları olduğu gibi döndürüyor. `is_even(n)` sayı çiftse `true` döndürmeli; şu an tam tersini yapıyor. İpucu: `a.max(b)` iki sayıdan büyüğünü, `a.min(b)` küçüğünü verir. Negatif tek sayılarda `n % 2` sonucu `-1`'dir."
+starter = '''
+/// Bir yüzdeyi 0 ile 100 arasına sıkıştırır.
+fn clamp_percent(v: i32) -> i32 {
+    v.min(100)
+}
+
+/// Sayı çiftse true döndürür.
+fn is_even(n: i32) -> bool {
+    n % 2 == 1
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn sikistirma() {
+        assert_eq!(clamp_percent(-5), 0);
+        assert_eq!(clamp_percent(150), 100);
+        assert_eq!(clamp_percent(50), 50);
+    }
+    #[test]
+    fn ciftlik() {
+        assert!(is_even(4));
+        assert!(is_even(0));
+        assert!(!is_even(7));
+        assert!(!is_even(-3));
+    }
+}
+'''
+solution = '''
+/// Bir yüzdeyi 0 ile 100 arasına sıkıştırır.
+fn clamp_percent(v: i32) -> i32 {
+    v.max(0).min(100)
+}
+
+/// Sayı çiftse true döndürür.
+fn is_even(n: i32) -> bool {
+    n % 2 == 0
+}
+'''
+points = 30

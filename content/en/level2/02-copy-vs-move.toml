@@ -1,0 +1,104 @@
+title = "Copy vs. Move"
+body_md = '''
+## Why
+
+In the previous lesson you saw that after `let b = a;` you can no longer use
+`a`. Do the same thing with a number, though, and nothing happens: both
+variables keep working. If you don't know why, you can't tell why the
+compiler complains in one place and stays quiet in another. The difference
+comes from the type: some types are copied when you assign them, others are
+moved.
+
+## How
+
+Types that are small, have a fixed size and live entirely on the stack are
+`Copy` types. The stack is the very fast memory area where functions keep
+their local variables. Copying a value there just means duplicating a few
+bytes, so Rust does it without asking and the old variable stays valid. The
+`Copy` types you have seen so far: integers (`i32`, `u8`, `usize`...),
+floating-point numbers (`f32`, `f64`), `bool`, `char`, plus tuples and arrays
+whose contents are all `Copy`.
+
+```rust
+let x = 5;
+let y = x; // x was copied
+println!("{} {}", x, y); // both are valid
+```
+
+`String` is not `Copy`: its text lives on the heap, and copying it can be
+expensive. So assigning it is a move. If you pass a `String` to a function
+and want to keep using it afterwards, the function has to return it. To
+return another value alongside it, use a tuple:
+
+```rust
+fn measure(s: String) -> (String, usize) {
+    let n = s.len();
+    (s, n)
+}
+```
+
+Mind the order: `s.len()` is computed first, and only then does `s` move into
+the tuple. If you wrote `(s, s.len())`, `s` would move first, `s.len()` would
+try to use the moved value, and you would get a compile error.
+
+## Watch out
+
+- `Copy` and `clone` are not the same thing. `Copy` happens automatically and
+  is cheap. `.clone()` is something you write yourself, and it can be
+  expensive because it copies the heap data too.
+- A tuple that contains a non-`Copy` part is not `Copy` either:
+  `(i32, String)` is moved when you assign it.
+- Types that hold heap data can't be `Copy`, because they have to give that
+  memory back when they are dropped. With two copies, the same memory would
+  be given back twice.
+- Handing a value over and getting it back every time is tedious. Once you
+  learn references in the next lesson, you won't need to.
+'''
+example = '''
+fn measure(s: String) -> (String, usize) {
+    let n = s.len();
+    (s, n)
+}
+
+fn main() {
+    let x = 5;
+    let y = x;
+    println!("x={} y={}", x, y);
+
+    let s = String::from("rust");
+    let (s, n) = measure(s);
+    println!("{} has length {}", s, n);
+}
+'''
+
+[exercise]
+prompt = '''Write `text_and_length(s: String) -> (String, usize)`. The function takes a `String` and returns the same `String` together with its length in bytes (`len()`) as a tuple, so the caller can keep using the text. Example: `"hello"` → `("hello", 5)`.'''
+starter = '''
+fn text_and_length(s: String) -> (String, usize) {
+    todo!()
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn gives_it_back() {
+        let (s, n) = text_and_length(String::from("hello"));
+        assert_eq!(n, 5);
+        assert_eq!(s, "hello");
+    }
+    #[test]
+    fn empty() {
+        let (s, n) = text_and_length(String::new());
+        assert_eq!(n, 0);
+        assert_eq!(s, "");
+    }
+}
+'''
+solution = '''
+fn text_and_length(s: String) -> (String, usize) {
+    let n = s.len();
+    (s, n)
+}
+'''

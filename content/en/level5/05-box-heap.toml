@@ -1,0 +1,138 @@
+title = "Box: Putting a Value on the Heap"
+body_md = '''
+## Why
+
+The compiler must know at compile time how many bytes every type takes.
+For some types that cannot work. If a list node is "a number and the rest
+of the list", the type contains itself and its size would be infinite.
+`Box<T>` solves this: it puts the value on the heap and keeps only the
+address of that value (a pointer) on the stack. However large the value
+is, the address always has the same size. For the same reason, moving a
+large value inside a `Box` is cheap: only the address is copied.
+
+## How
+
+`Box::new(value)` puts the value on the heap. You reach the value inside
+with `*`:
+
+```rust
+let b = Box::new(5);
+println!("{}", *b + 1); // 6
+```
+
+A `Box` owns the value inside it. When `b` goes out of scope, the value
+on the heap is dropped too; you do nothing by hand.
+
+In a type that contains itself, you put the "rest" part inside a `Box`:
+
+```rust
+enum List {
+    Cons(i32, Box<List>),
+    Nil,
+}
+```
+
+`Cons` holds a number and the rest of the list; `Nil` says the list has
+ended. You walk such a list with `match`. In the pattern `Cons(v, rest)`,
+`rest` is a `&Box<List>`; you can pass it straight to a function that
+expects `&List`, and Rust does the conversion. Method calls need no `*`
+either.
+
+You already know the second common use of `Box` from Level 4: trait
+objects. `Box<dyn Shape>` means "any type that implements the `Shape`
+trait". That lets you put different types in the same `Vec`:
+
+```rust
+let shapes: Vec<Box<dyn Shape>> = vec![Box::new(Square { side: 2.0 })];
+```
+
+## Watch out
+
+If you write plain `List` instead of `Box<List>`, the compiler tells you
+this (a type that contains itself has infinite size) and suggests `Box`
+as the fix:
+
+```text
+error[E0072]: recursive type `List` has infinite size
+```
+
+- If you assign a `Box` to another variable, the value is moved; you
+  cannot use the old variable.
+- Do not put every value in a `Box`. Getting space on the heap and giving
+  it back takes time; small values of known size are faster on the stack.
+- When you call a method through `dyn Trait`, which type's method runs is
+  looked up at run time (dynamic dispatch). It has a small cost that most
+  programs never notice.
+'''
+example = '''
+enum List {
+    Cons(i32, Box<List>),
+    Nil,
+}
+
+fn sum(list: &List) -> i32 {
+    match list {
+        List::Cons(v, rest) => v + sum(rest),
+        List::Nil => 0,
+    }
+}
+
+trait Shape {
+    fn area(&self) -> f64;
+}
+
+struct Square {
+    side: f64,
+}
+
+struct Rect {
+    w: f64,
+    h: f64,
+}
+
+impl Shape for Square {
+    fn area(&self) -> f64 {
+        self.side * self.side
+    }
+}
+
+impl Shape for Rect {
+    fn area(&self) -> f64 {
+        self.w * self.h
+    }
+}
+
+fn main() {
+    let list = List::Cons(1, Box::new(List::Cons(2, Box::new(List::Nil))));
+    println!("sum: {}", sum(&list));
+
+    let shapes: Vec<Box<dyn Shape>> = vec![
+        Box::new(Square { side: 2.0 }),
+        Box::new(Rect { w: 2.0, h: 3.0 }),
+    ];
+    let total: f64 = shapes.iter().map(|s| s.area()).sum();
+    println!("area: {}", total);
+}
+'''
+
+[exercise]
+prompt = "`List` is a linked list: `Cons(number, rest)` holds one element and the rest of the list, and `Nil` is the end of the list. `sum(list)` returns the total of the elements and `len(list)` returns how many elements there are. Example: for a list with the elements 1, 2, 3, `sum` → `6` and `len` → `3`; for `Nil` both return `0`. Write both as recursive functions (functions that call themselves): use `match`, call the same function again on the rest of the list in the `Cons(v, rest)` case, and return `0` in the `Nil` case."
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    fn sample() -> List {
+        List::Cons(1, Box::new(List::Cons(2, Box::new(List::Cons(3, Box::new(List::Nil))))))
+    }
+    #[test]
+    fn sums_elements() {
+        assert_eq!(sum(&sample()), 6);
+        assert_eq!(sum(&List::Nil), 0);
+    }
+    #[test]
+    fn counts_elements() {
+        assert_eq!(len(&sample()), 3);
+        assert_eq!(len(&List::Nil), 0);
+    }
+}
+'''

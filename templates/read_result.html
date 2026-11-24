@@ -1,0 +1,8 @@
+{% if ok %}
+<p class="result-ok">{{ message }}</p>
+{% include "badges.html" %}
+{% include "unlock.html" %}
+{% else %}
+<p class="result-fail">{{ message }}</p>
+{% endif %}
+{% include "stats.html" %}

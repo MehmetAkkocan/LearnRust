@@ -1,0 +1,110 @@
+title = "Collections and Error Handling"
+description = "You keep lists in a Vec and key-value tables in a HashMap; you return errors with Result and ?, and write your own error type. Then you learn to write code that works with different types using traits, generics and trait objects."
+
+[[quiz.mcq]]
+id = "4-m1"
+q = "After the lines `let mut v = Vec::new(); v.push(1);`, what does `v.get(5)` give you?"
+choices = ["The program panics", "`0`", "`None`", "The code doesn't compile"]
+
+[[quiz.mcq]]
+id = "4-m2"
+q = "What happens when the `?` operator meets `Err(e)` on a `Result`?"
+choices = [
+  "The function ends on that line and returns `Err(e)`",
+  "The program stops with a panic",
+  "The error is skipped and the code carries on from the next line",
+  "The error is printed and a default value is used in its place",
+]
+
+[[quiz.mcq]]
+id = "4-m3"
+q = "What does your own error type need so that you can pass it on with `?` in a function that returns `Result<T, Box<dyn Error>>`?"
+choices = [
+  "It must derive `Clone`",
+  "It must be `Copy`",
+  "It must be a `struct`, not an `enum`",
+  "It must implement the `Error` trait, along with `Debug` and `Display`",
+]
+
+[[quiz.mcq]]
+id = "4-m4"
+q = "What does `T: Display` mean in the signature `fn show<T: std::fmt::Display>(x: T)`?"
+choices = [
+  "`T` is always a `String`",
+  "Only types that implement `Display` can be used as `T`",
+  "Which type `T` is gets chosen at runtime",
+  "`T` has to be a reference",
+]
+
+[[quiz.mcq]]
+id = "4-m5"
+q = "How can values of different types sit together in a `Vec<Box<dyn Shape>>`?"
+choices = [
+  "Rust makes all types the same size on its own",
+  "The compiler erases generic types while compiling",
+  "Each element is a pointer of the same size (a `Box`); the method to call is found at runtime",
+  "A `Vec` can hold a mix of values of any type anyway",
+]
+
+[[quiz.coding]]
+id = "4-q1"
+prompt = '''Write `parse_scores(input: &str) -> Result<HashMap<String, i32>, ScoreError>`. The input is made of `name=number` parts separated by `;`: `"ann=10;bob=20;ann=5"`. Return each name's total score in a map; if a name appears more than once, add its scores together. For this example the result is `"ann"` → 15, `"bob"` → 20. Skip empty parts; empty input gives an empty map. If you find a part with no `=` in it, return `Err(ScoreError::MissingSeparator)`; if the piece after the `=` can't be turned into an `i32`, return `Err(ScoreError::BadNumber)`. Hint: `input.split(';')` gives you the parts one by one, and you can loop over them with `for`. `part.split_once('=')` splits a part in two at the first `=` and returns an `Option<(&str, &str)>`; you get `None` when there is no `=`.'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn adds_up_scores() {
+        let got = parse_scores("ann=10;bob=20;ann=5").unwrap();
+        let mut expected = HashMap::new();
+        expected.insert("ann".to_string(), 15);
+        expected.insert("bob".to_string(), 20);
+        assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn empty_input() {
+        assert_eq!(parse_scores(""), Ok(HashMap::new()));
+    }
+
+    #[test]
+    fn missing_separator() {
+        assert_eq!(parse_scores("ann=10;bob"), Err(ScoreError::MissingSeparator));
+    }
+
+    #[test]
+    fn bad_number() {
+        assert_eq!(parse_scores("ann=abc"), Err(ScoreError::BadNumber));
+    }
+}
+'''
+
+[[quiz.coding]]
+id = "4-q2"
+prompt = '''The `Scorer` trait and `LengthScorer` are ready; write two things. (1) `score` for `VowelScorer`: it returns how many of the letters `a`, `e`, `i`, `o`, `u` the word contains. Example: `"education"` → 5, `"rhythm"` → 0. (2) `total_score(scorers, word)`: it adds up the scores that every scorer in the list gives this word and returns the sum; for an empty list it returns 0. Example: with `LengthScorer` and `VowelScorer` in the list, `"rust"` → 4 + 1 = 5.'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn counts_vowels() {
+        assert_eq!(VowelScorer.score("education"), 5);
+        assert_eq!(VowelScorer.score("rhythm"), 0);
+    }
+
+    #[test]
+    fn sums_all_scorers() {
+        let scorers: Vec<Box<dyn Scorer>> = vec![Box::new(LengthScorer), Box::new(VowelScorer)];
+        assert_eq!(total_score(&scorers, "rust"), 5);
+        assert_eq!(total_score(&scorers, "education"), 14);
+    }
+
+    #[test]
+    fn empty_list() {
+        let scorers: Vec<Box<dyn Scorer>> = Vec::new();
+        assert_eq!(total_score(&scorers, "rust"), 0);
+    }
+}
+'''

@@ -1,0 +1,178 @@
+id = "4-07"
+title = "Trait Object: Box<dyn Trait>"
+read_points = 10
+body_md = '''
+## Neden
+
+Bir `Vec<T>`'nin bütün elemanları aynı tiptedir: ya hepsi `Dog` ya hepsi
+`Cat`. Generic de bunu değiştirmez; `T` her kullanımda tek bir tipin
+yerine geçer. Peki köpekleri ve kedileri aynı listede tutmak, sonra
+hepsine sırayla "ses çıkar" demek istersen? Bunun için trait object
+kullanırsın. `dyn Animal`, "`Animal` trait'ini uygulayan herhangi bir tip"
+demektir. Listeye farklı tipler koyarsın; hangi tipin `speak` metodunun
+çalışacağı program çalışırken, o anki elemana bakılarak bulunur. Buna
+dynamic dispatch denir.
+
+## Nasıl
+
+`Dog` ile `Cat` bellekte farklı büyüklükte yer kaplayabilir; derleyici
+`dyn Animal` yazan bir değerin kaç bayt tuttuğunu bilemez. Bu yüzden
+`dyn Animal`'ı hep bir işaretçinin arkasında kullanırsın: değerin sahibi
+olacaksan `Box<dyn Animal>`, ödünç alacaksan `&dyn Animal`.
+`Box::new(x)` değeri heap'e koyar ve onu gösteren, boyutu hep aynı olan
+bir işaretçi verir. (`Box`'ı Seviye 5'te ayrıntılı göreceksin.)
+
+```rust
+trait Animal {
+    fn speak(&self) -> String;
+}
+
+struct Dog;
+struct Cat;
+
+impl Animal for Dog {
+    fn speak(&self) -> String { "hav".to_string() }
+}
+impl Animal for Cat {
+    fn speak(&self) -> String { "miyav".to_string() }
+}
+
+let zoo: Vec<Box<dyn Animal>> = vec![Box::new(Dog), Box::new(Cat)];
+for a in zoo.iter() {
+    println!("{}", a.speak());   // önce hav, sonra miyav
+}
+```
+
+- Listenin tipini `Vec<Box<dyn Animal>>` diye yazdığın için
+  `Box::new(Dog)` kendiliğinden `Box<dyn Animal>`'a dönüşür.
+- Bir fonksiyon duruma göre farklı tipler döndürecekse dönüş tipini
+  `Box<dyn Animal>` yaparsın.
+- Böyle bir listeyi okuyan fonksiyon parametreyi `&[Box<dyn Animal>]`
+  olarak alır.
+- Hata dersindeki `Box<dyn Error>` de bir trait object'ti: farklı hata
+  tiplerini tek dönüş tipinde toplar.
+
+## Dikkat
+
+- Her trait `dyn` ile kullanılamaz. Trait'te `Self` döndüren ya da kendi
+  generic parametresi olan bir metot varsa derleyici `the trait is not dyn
+  compatible` der (eski sürümlerde `cannot be made into an object`).
+- Dynamic dispatch'in küçük bir maliyeti vardır: her çağrıda doğru metot
+  bir tablodan bulunur. Tipi derleme zamanında biliyorsan generic ya da
+  `impl Trait` daha hızlıdır. `dyn`'i farklı tipleri bir arada tutman
+  gerektiğinde kullan.
+- `dyn` kelimesini yazmak zorundasın. `Box<Animal>` eski bir yazımdır;
+  2021 sürümünde derlenmez.
+'''
+example = '''
+trait Animal {
+    fn speak(&self) -> String;
+}
+
+struct Dog;
+struct Cat;
+
+impl Animal for Dog {
+    fn speak(&self) -> String {
+        "hav".to_string()
+    }
+}
+
+impl Animal for Cat {
+    fn speak(&self) -> String {
+        "miyav".to_string()
+    }
+}
+
+fn make(kind: &str) -> Box<dyn Animal> {
+    if kind == "dog" {
+        Box::new(Dog)
+    } else {
+        Box::new(Cat)
+    }
+}
+
+fn main() {
+    let zoo: Vec<Box<dyn Animal>> = vec![make("dog"), make("cat"), Box::new(Dog)];
+    for a in zoo.iter() {
+        println!("{}", a.speak());
+    }
+}
+'''
+
+[exercise]
+prompt = '''`chorus(animals: &[Box<dyn Animal>]) -> String` fonksiyonunu yaz. Listedeki her hayvanın `speak()` çıktısını sırayla al ve aralarına `", "` (virgül ve boşluk) koyarak tek bir `String` yap; sonda fazladan ayırıcı kalmasın. Örnek: köpek, kedi, köpek → `"hav, miyav, hav"`; yalnızca kedi → `"miyav"`; boş liste → `""`. İpucu: `for (i, a) in animals.iter().enumerate()` sana sıra numarasını da verir; `i > 0` ise önce ayırıcıyı ekle.'''
+starter = '''
+trait Animal {
+    fn speak(&self) -> String;
+}
+
+struct Dog;
+struct Cat;
+
+impl Animal for Dog {
+    fn speak(&self) -> String {
+        "hav".to_string()
+    }
+}
+
+impl Animal for Cat {
+    fn speak(&self) -> String {
+        "miyav".to_string()
+    }
+}
+
+fn chorus(animals: &[Box<dyn Animal>]) -> String {
+    todo!()
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn koro() {
+        let v: Vec<Box<dyn Animal>> = vec![Box::new(Dog), Box::new(Cat), Box::new(Dog)];
+        assert_eq!(chorus(&v), "hav, miyav, hav");
+    }
+    #[test]
+    fn tek_ve_bos() {
+        let one: Vec<Box<dyn Animal>> = vec![Box::new(Cat)];
+        assert_eq!(chorus(&one), "miyav");
+        let none: Vec<Box<dyn Animal>> = Vec::new();
+        assert_eq!(chorus(&none), "");
+    }
+}
+'''
+solution = '''
+trait Animal {
+    fn speak(&self) -> String;
+}
+
+struct Dog;
+struct Cat;
+
+impl Animal for Dog {
+    fn speak(&self) -> String {
+        "hav".to_string()
+    }
+}
+
+impl Animal for Cat {
+    fn speak(&self) -> String {
+        "miyav".to_string()
+    }
+}
+
+fn chorus(animals: &[Box<dyn Animal>]) -> String {
+    let mut out = String::new();
+    for (i, a) in animals.iter().enumerate() {
+        if i > 0 {
+            out.push_str(", ");
+        }
+        out.push_str(&a.speak());
+    }
+    out
+}
+'''
+points = 30

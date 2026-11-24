@@ -1,0 +1,15 @@
+<div class="mcq-summary">
+{% if !error.is_empty() %}<p class="result-fail">{{ error }}</p>{% endif %}
+{% for it in items %}
+  <div class="{% if it.ok %}result-ok{% else %}result-fail{% endif %}">
+    <p>{{ it.q_html|safe }}</p>
+    {% if it.ok %}<p>{{ t.correct }}{% if it.gained > 0 %} +{{ it.gained }} {{ t.points_word }}{% endif %}</p>
+    {% else %}<p>{{ t.wrong_answer_is }} {{ it.correct_html|safe }}</p>{% endif %}
+  </div>
+{% endfor %}
+{% if items.is_empty() && error.is_empty() %}<p class="result-fail">{{ t.nothing_selected }}</p>{% endif %}
+{% if gained_total > 0 %}<p class="gain">{{ t.total }} +{{ gained_total }} {{ t.points_word }}</p>{% endif %}
+{% include "badges.html" %}
+{% include "unlock.html" %}
+</div>
+{% include "stats.html" %}

@@ -1,0 +1,103 @@
+title = "Concurrency"
+description = "Sharing one value between several owners (Rc/RefCell, Arc/Mutex), starting threads, passing messages over a channel, Send/Sync, and a tiny Future executor you write yourself."
+
+[[quiz.mcq]]
+id = "6-m1"
+q = "Several threads will use and change the same number together. Which type fits?"
+choices = ["Rc<RefCell<i32>>", "Rc<i32>", "Arc<Mutex<i32>>", "RefCell<i32>"]
+
+[[quiz.mcq]]
+id = "6-m2"
+q = "What happens if you call `borrow_mut()` a second time while a `borrow_mut()` you took from the same `RefCell` is still in use?"
+choices = ["The code does not compile", "The program panics while it runs", "The second call waits for the first one to finish", "You get a copy of the value"]
+
+[[quiz.mcq]]
+id = "6-m3"
+q = "When does a `for v in rx` loop (or `rx.iter()`) end?"
+choices = ["When the first message arrives", "When no message arrives for 1 second", "When the Receiver is cloned", "When every Sender has been dropped and no message is left waiting"]
+
+[[quiz.mcq]]
+id = "6-m4"
+q = "When does the `MutexGuard` you got from `lock()` release the lock?"
+choices = ["When the guard is dropped; usually when its scope ends", "When the thread starts", "When you call unlock() on the guard", "Only when the program ends"]
+
+[[quiz.mcq]]
+id = "6-m5"
+q = "An executor polled a future and got `Poll::Pending`. What should it do next?"
+choices = ["Drop the future right away", "Put a default value in place of the result", "Poll the future again once the waker signals (or by retrying right away)", "Start a new thread and guess the result"]
+
+[[quiz.coding]]
+id = "6-q1"
+prompt = "`word_total(chunks)` takes a `Vec<String>` and returns the total number of words in all the chunks as a `usize`. Start a separate thread for each chunk; the thread counts the words in its own chunk (`split_whitespace().count()`) and sends the count into an mpsc channel. The main thread adds up the counts that arrive and returns the sum. Example: `[\"one two three\", \"four five\"]` → `5`; an empty list → `0`. Don't forget to `drop` the original `Sender`, or the loop that receives the messages never ends."
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn total_words() {
+        let chunks = vec![
+            "one two three".to_string(),
+            "four five".to_string(),
+            "".to_string(),
+            "  six   seven  ".to_string(),
+        ];
+        assert_eq!(word_total(chunks), 7);
+    }
+
+    #[test]
+    fn empty_input() {
+        assert_eq!(word_total(Vec::new()), 0);
+    }
+
+    #[test]
+    fn many_chunks() {
+        let chunks: Vec<String> = (0..20).map(|_| "a b c".to_string()).collect();
+        assert_eq!(word_total(chunks), 60);
+    }
+}
+'''
+
+[[quiz.coding]]
+id = "6-q2"
+prompt = "Write a simple `Bank` that several threads can use at the same time. The accounts live in a single `Mutex<Vec<i64>>`; an account's number is its index in the list. `Bank::new(balances)` sets up the bank with the given balances. `balance(idx)` returns that account's balance as `Some(..)`, or `None` if there is no such account. `transfer(from, to, amount)` takes the lock once and, without releasing it, moves `amount` from the `from` account to the `to` account; on success it returns `Ok(())`. If `from` or `to` is not a valid index, return `Err(\"no such account\".to_string())`; if the `from` account does not have enough money, return `Err(\"insufficient funds\".to_string())`. When there is an error, no balance may change."
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Arc;
+    use std::thread;
+
+    #[test]
+    fn single_thread() {
+        let bank = Bank::new(vec![100, 0]);
+        assert_eq!(bank.transfer(0, 1, 30), Ok(()));
+        assert_eq!(bank.balance(0), Some(70));
+        assert_eq!(bank.balance(1), Some(30));
+        assert_eq!(bank.transfer(0, 1, 100), Err("insufficient funds".to_string()));
+        assert_eq!(bank.transfer(0, 5, 1), Err("no such account".to_string()));
+        assert_eq!(bank.balance(9), None);
+        assert_eq!(bank.balance(0), Some(70));
+        assert_eq!(bank.balance(1), Some(30));
+    }
+
+    #[test]
+    fn many_threads() {
+        let bank = Arc::new(Bank::new(vec![1000, 0]));
+        let mut handles = Vec::new();
+        for _ in 0..4 {
+            let b = Arc::clone(&bank);
+            handles.push(thread::spawn(move || {
+                for _ in 0..100 {
+                    b.transfer(0, 1, 1).unwrap();
+                }
+            }));
+        }
+        for h in handles {
+            h.join().unwrap();
+        }
+        assert_eq!(bank.balance(0), Some(600));
+        assert_eq!(bank.balance(1), Some(400));
+    }
+}
+'''

@@ -1,0 +1,77 @@
+title = "Performance: Allocation and Measuring"
+body_md = '''
+## Why
+
+Rust is fast, but it doesn't make everything fast for you. The most common hidden cost is allocation: asking the heap for memory. `String` and `Vec` keep their contents on the heap. When the space they reserved (the capacity) fills up, they ask for a bigger block and copy the old contents over. Once, you won't notice; in a loop that runs a million times, that is where the time goes. Still, don't work from guesses: measure first, find the slow spot, then fix it.
+
+## How
+
+Three habits prevent most needless allocations:
+
+- **Borrow if you only read.** If you only read a parameter, ask for `&str` instead of `String` and `&[T]` instead of `Vec<T>`. The caller doesn't have to give the value away or `clone` it. The same goes for return values: if the result is a part of the input, don't build a new `String`; return that part as a `&str`.
+- **Reserve the space up front.** If you know how many elements are coming, start with `Vec::with_capacity(n)` or `String::with_capacity(n)`. The space is allocated once and nothing has to grow along the way.
+- **Skip needless `clone()` calls and temporary collections.** Don't `collect()` into a `Vec` just to walk over it once; use the iterator chain directly.
+
+```rust
+let mut out = String::with_capacity(total_len);
+for part in parts {
+    out.push_str(part);
+}
+```
+
+To measure, take the starting moment with `std::time::Instant::now()`; when the work is done, `elapsed()` gives the time that passed. It is a rough measurement, but it gives you an idea. Always measure a program built with `cargo build --release`. The compiler may delete code whose result is never used; pass the value you are measuring through `std::hint::black_box(..)` and it won't.
+
+## Watch out
+
+- Don't optimize without measuring. Speed up the wrong place and all you get is more complicated code.
+- Timings from a debug build mislead you; optimizations are off.
+- `with_capacity(n)` reserves room for at least `n` elements. Too large a number wastes memory. Too small is not an error; the collection just grows again later.
+- A function you made faster must still return the same results. Your tests tell you that.
+'''
+example = '''
+fn count_growths(mut s: String, n: usize) -> usize {
+    let mut last = s.capacity();
+    let mut growths = 0;
+    for _ in 0..n {
+        s.push('x');
+        if s.capacity() != last {
+            growths += 1;
+            last = s.capacity();
+        }
+    }
+    growths
+}
+
+fn main() {
+    println!("without reserving: grew {} times", count_growths(String::new(), 1000));
+    println!("with capacity reserved: grew {} times", count_growths(String::with_capacity(1000), 1000));
+}
+'''
+
+[exercise]
+prompt = "Both functions are currently wrong; fix them. (1) `build_csv(items)` joins the pieces with a comma between them and no comma at the end: `[\"a\", \"b\", \"c\"]` → `\"a,b,c\"`, `[\"solo\"]` → `\"solo\"`, an empty list → `\"\"`. Work out the length of the result first and reserve the space once with `String::with_capacity`. (2) `first_word(s)` returns the first word of the text as a `&str`, without building a new `String`. It skips leading whitespace and returns `\"\"` when there is no word: `\"hello world\"` → `\"hello\"`, `\"  lead x\"` → `\"lead\"`. Hint: `split_whitespace()`."
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn csv_joins_without_trailing_comma() {
+        assert_eq!(build_csv(&["a", "b", "c"]), "a,b,c");
+        assert_eq!(build_csv(&["solo"]), "solo");
+        assert_eq!(build_csv(&[]), "");
+    }
+    #[test]
+    fn csv_reserves_capacity() {
+        let s = build_csv(&["ab", "cd"]);
+        assert_eq!(s, "ab,cd");
+        assert!(s.capacity() >= 5);
+    }
+    #[test]
+    fn first_word_works() {
+        assert_eq!(first_word("hello world"), "hello");
+        assert_eq!(first_word("  lead x"), "lead");
+        assert_eq!(first_word(""), "");
+        assert_eq!(first_word("one"), "one");
+    }
+}
+'''

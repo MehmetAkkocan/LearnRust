@@ -1,0 +1,96 @@
+title = "Defining Your Own Types"
+description = "Build your own types with structs and enums, and give them methods with impl. Use them safely with Option, match, if let and modules."
+
+[[quiz.mcq]]
+id = "3-m1"
+q = "A method takes `&mut self`. How must the variable be declared for you to call it?"
+choices = ["let a = ...;", "const a = ...;", "let mut a = ...;", "static a = ...;"]
+
+[[quiz.mcq]]
+id = "3-m2"
+q = "What do you call a function written in an `impl` block that takes no `self` and is called like `Account::new(10)`?"
+choices = ["Associated function", "Macro", "Closure", "Module"]
+
+[[quiz.mcq]]
+id = "3-m3"
+q = "Rust has no `null`. Which type says that a value may be missing?"
+choices = ["Void", "Nil", "Maybe", "Option<T>"]
+
+[[quiz.mcq]]
+id = "3-m4"
+q = "Which of these is true of `match`?"
+choices = ["The code compiles even if you leave a case out", "It has to cover every case", "It only works with numbers", "Every arm ends with `break`"]
+
+[[quiz.mcq]]
+id = "3-m5"
+q = "What do you put in front of a function inside a module so it can be called from outside the module?"
+choices = ["use mut", "extern", "pub", "static"]
+
+[[quiz.coding]]
+id = "3-q1"
+prompt = "Write a traffic light. `TrafficLight::new()` returns a value whose light is `Red` and whose `ticks` field is 0. `next()` moves the light one step forward (Red -> Green -> Yellow -> Red) and adds 1 to `ticks`. `is_go()` returns `true` if the light is `Green`, `false` otherwise. E.g. after `new()` and three calls to `next()`, the light is `Red` again and `ticks` is 3."
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn starts_red() {
+        let t = TrafficLight::new();
+        assert_eq!(t.state, Light::Red);
+        assert_eq!(t.ticks, 0);
+        assert!(!t.is_go());
+    }
+
+    #[test]
+    fn cycles() {
+        let mut t = TrafficLight::new();
+        t.next();
+        assert_eq!(t.state, Light::Green);
+        assert!(t.is_go());
+        t.next();
+        assert_eq!(t.state, Light::Yellow);
+        assert!(!t.is_go());
+        t.next();
+        assert_eq!(t.state, Light::Red);
+        assert_eq!(t.ticks, 3);
+    }
+}
+'''
+
+[[quiz.coding]]
+id = "3-q2"
+prompt = "Write the function `average_grade(students)`. Each student's `grade` field is an `Option<u32>`: `Some(grade)` if they have a grade, `None` if they don't. The function returns, inside `Some`, the average of only the students who have a grade; the division is integer division, so the fraction is dropped. If no student has a grade (including when the list is empty) it returns `None`. E.g. for the grades `Some(80)`, `None`, `Some(91)` the result is `Some(85)`. Hint: `for s in students` walks the slice; you can look at each student's grade with `if let Some(g) = s.grade`."
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn st(name: &str, grade: Option<u32>) -> Student {
+        Student { name: name.to_string(), grade }
+    }
+
+    #[test]
+    fn empty_list() {
+        assert_eq!(average_grade(&[]), None);
+    }
+
+    #[test]
+    fn no_grades() {
+        let v = vec![st("Ann", None), st("Ben", None)];
+        assert_eq!(average_grade(&v), None);
+    }
+
+    #[test]
+    fn mixed() {
+        let v = vec![st("Ann", Some(80)), st("Ben", None), st("Cleo", Some(91))];
+        assert_eq!(average_grade(&v), Some(85));
+    }
+
+    #[test]
+    fn single_grade() {
+        let v = vec![st("Dan", Some(70))];
+        assert_eq!(average_grade(&v), Some(70));
+    }
+}
+'''

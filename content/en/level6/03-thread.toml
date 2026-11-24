@@ -1,0 +1,73 @@
+title = "thread::spawn and join: Starting a Thread"
+body_md = '''
+## Why
+
+Normally a program runs in a single thread: one path from start to
+finish. If you have jobs that don't depend on each other, you can hand
+them to separate threads. On a multi-core processor those jobs really do
+run at the same time. And a slow job (reading a file, waiting for the
+network) no longer keeps the others waiting.
+
+`std::thread` in Rust's standard library uses the operating system's
+threads. What is different in Rust: if you share data between threads
+the wrong way, the mistake doesn't show up at run time; the code doesn't
+compile in the first place.
+
+## How
+
+`thread::spawn` takes a closure and runs it in a new thread. It gives
+you back a `JoinHandle<T>`. When you call `join()` on the handle, you
+wait until that thread is done; the value the closure returned arrives
+inside a `Result<T, _>`.
+
+```rust
+use std::thread;
+
+let handle = thread::spawn(|| 2 + 3);
+let value = handle.join().unwrap();
+assert_eq!(value, 5);
+```
+
+- If the closure uses a value from outside, write `move` in front of it.
+  Then the value is moved into the thread and belongs to the thread.
+- If you start several threads, collect the handles in a `Vec`, then
+  `join` them one after another.
+- You can't know which thread will finish first. But if you `join` the
+  handles in the order you created them, you get the results in that
+  order too.
+
+## Watch out
+
+- The closure you give to `spawn` can't hold a reference to a local
+  variable. The compiler wants the closure to be `'static`, because the
+  thread may live longer than the function that started it; by then the
+  value behind the reference would already be dropped. The fix is to
+  write `move` and move the value into the thread.
+- If the code inside a thread panics, `join()` returns `Err`. If you
+  call `unwrap()` on it, the panic carries over to the main thread.
+- Nobody waits for a thread you don't `join`: when `main` ends the
+  program exits, and that thread may be cut off halfway.
+- Don't rely on the order in which output appears on the screen, or on
+  timings you set up with `sleep`. Check the result after `join`.
+- Every thread has a cost. Starting a thread for a tiny job costs more
+  than just doing the job directly.
+'''
+
+[exercise]
+prompt = "`square_all(nums)` takes a `Vec<u64>`. Start a separate thread for each number and compute the square of the number in that thread. Return the results as a `Vec<u64>` in the same order as the input. Example: `[1, 2, 3, 4]` → `[1, 4, 9, 16]`. For an empty list, return an empty list."
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn squares() {
+        assert_eq!(square_all(vec![1, 2, 3, 4]), vec![1, 4, 9, 16]);
+    }
+
+    #[test]
+    fn empty_list() {
+        assert_eq!(square_all(Vec::new()), Vec::<u64>::new());
+    }
+}
+'''

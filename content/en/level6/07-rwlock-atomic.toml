@@ -1,0 +1,122 @@
+title = "RwLock and Atomic Types"
+body_md = '''
+## Why
+
+A `Mutex` makes no difference between reading and writing: even if you
+only want to look at the data, you take the lock, and everyone else
+waits meanwhile. If the data is read often and changed rarely (program
+settings, for example), that waiting is wasted. `RwLock<T>` tells the
+two apart: at any moment there can be either many readers or a single
+writer.
+
+For a single number or flag, even a lock is too much. The atomic types
+in the `std::sync::atomic` module (`AtomicUsize`, `AtomicBool` and the
+like) do each operation in one step; while one thread is in the middle
+of an operation, no other thread can get in between.
+
+## How
+
+On an `RwLock`, `read()` gives you a guard for reading and `write()` a
+guard for changing:
+
+```rust
+use std::sync::{Arc, RwLock};
+
+let config = Arc::new(RwLock::new(String::from("v1")));
+{
+    let r = config.read().unwrap();
+    assert_eq!(*r, "v1");
+}
+*config.write().unwrap() = String::from("v2");
+```
+
+An atomic counter:
+
+```rust
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+let hits = AtomicUsize::new(0);
+hits.fetch_add(1, Ordering::SeqCst);
+let now = hits.load(Ordering::SeqCst);
+```
+
+- Methods such as `fetch_add`, `load` and `store` take `&self`. So you
+  change the value without making it `mut` and without taking a lock;
+  putting it in an `Arc` and handing it to the threads is enough.
+- `fetch_add(1, ..)` adds 1 to the number, `load` reads it, `store`
+  writes it.
+- The `Ordering` argument picks which ordering guarantee the operation
+  gives towards other threads. The strictest one, and the easiest to
+  reason about, is `SeqCst`; use it every time while you are starting
+  out.
+- An atomic type protects a single value. If you have several fields
+  that must change together, you need a `Mutex`.
+
+## Watch out
+
+- Don't call `write()` in the same thread while you still hold a read
+  guard. `write()` waits for your own guard to be released; that is a
+  deadlock (on some systems it panics instead).
+- An `RwLock` can become poisoned just like a `Mutex`: if a thread
+  panics while it holds the write lock, later `read()` and `write()`
+  calls return `Err`.
+- Don't read the counter with `load` and then write it back with
+  `store`. Between the two steps another thread can change the counter,
+  and its increment gets lost. Use the single-step `fetch_add`.
+- The `Ordering` options other than `SeqCst` open the door to bugs that
+  are hard to find. If you are not sure, write `SeqCst`.
+'''
+example = '''
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, RwLock};
+use std::thread;
+
+fn main() {
+    let config = Arc::new(RwLock::new(String::from("v1")));
+    let hits = Arc::new(AtomicUsize::new(0));
+
+    let mut handles = Vec::new();
+    for _ in 0..4 {
+        let cfg = Arc::clone(&config);
+        let h = Arc::clone(&hits);
+        handles.push(thread::spawn(move || {
+            let name = cfg.read().unwrap().clone();
+            h.fetch_add(name.len(), Ordering::SeqCst);
+        }));
+    }
+    for handle in handles {
+        handle.join().unwrap();
+    }
+
+    *config.write().unwrap() = String::from("v2-new");
+    println!(
+        "total: {}, new setting: {}",
+        hits.load(Ordering::SeqCst),
+        config.read().unwrap()
+    );
+}
+'''
+
+[exercise]
+prompt = "`count_atomic(threads, per_thread)` takes two numbers. Create a shared `AtomicUsize` counter and start `threads` threads; each thread adds 1 to the counter `per_thread` times. `join` all the threads, then return the final value of the counter. Example: `count_atomic(4, 1000)` → `4000`; `count_atomic(0, 10)` → `0`."
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn four_threads() {
+        assert_eq!(count_atomic(4, 1000), 4000);
+    }
+
+    #[test]
+    fn zero_threads() {
+        assert_eq!(count_atomic(0, 10), 0);
+    }
+
+    #[test]
+    fn one_thread() {
+        assert_eq!(count_atomic(1, 5), 5);
+    }
+}
+'''

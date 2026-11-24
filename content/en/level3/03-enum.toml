@@ -1,0 +1,125 @@
+title = "Enums: One of a Fixed Set of Choices"
+body_md = '''
+## Why
+
+Some values can only be one of a few choices. A direction is a good example:
+north, east, south or west. You could store it as a number (0 for north, 1 for
+east...), but then someone writes `7` by mistake and the compiler says
+nothing. Store it as text and a typo like `"nroth"` slips through instead.
+With an `enum` you list the choices one by one, and a value of that type has
+to be one of them. Write something that isn't on the list and the program
+doesn't compile.
+
+## How
+
+Each choice of an enum is called a variant. A variant can be a bare name, or
+it can carry data along with it.
+
+```rust
+enum Message {
+    Quit,                    // carries no data
+    Move { x: i32, y: i32 }, // named fields, like a struct
+    Write(String),           // unnamed field, like a tuple
+}
+
+let m = Message::Write(String::from("hello"));
+```
+
+You write a variant as `EnumName::Variant`. Whichever variant it is, the
+value's type is `Message`; you can pass any of them to the same function.
+
+To find out which variant you have, you use `match`. Each line is an arm: a
+pattern on the left, and after `=>` the value to produce in that case.
+
+```rust
+fn is_quit(m: &Message) -> bool {
+    match m {
+        Message::Quit => true,
+        _ => false,
+    }
+}
+```
+
+`_` means "everything else". You'll look at `match` in detail two lessons from
+now; this much is enough for the moment.
+
+Just as with a struct, you can add methods to an enum with `impl`. For enums
+that carry no data, `#[derive(Debug, PartialEq, Clone, Copy)]` makes life
+easier: you can compare values with `==`, and when you hand a value to
+something else it is copied, not moved.
+
+## Watch out
+
+- A `match` has to cover every variant. Forget one and the code doesn't
+  compile; the compiler tells you which one is missing:
+  `` non-exhaustive patterns: `Message::Write(_)` not covered ``. When you add
+  a variant to an enum later, the same error points out every place you need
+  to update.
+- Unless you derive `PartialEq`, you can't compare two enum values with `==`.
+- You can't write a variant's name on its own: it's `Message::Quit`, not
+  `Quit`. (With `use Message::*;` you can drop the prefix; you'll meet `use`
+  in the last lesson of this level.)
+'''
+example = '''
+#[derive(Debug)]
+enum Message {
+    Quit,
+    Move { x: i32, y: i32 },
+    Write(String),
+}
+
+impl Message {
+    fn describe(&self) -> String {
+        match self {
+            Message::Quit => String::from("quit"),
+            Message::Move { x, y } => format!("move: {}, {}", x, y),
+            Message::Write(text) => format!("write: {}", text),
+        }
+    }
+}
+
+fn main() {
+    // vec![...] makes a list (details in Level 4); the for loop walks through it in order
+    let msgs = vec![
+        Message::Quit,
+        Message::Move { x: 3, y: -1 },
+        Message::Write(String::from("hello")),
+    ];
+    for m in &msgs {
+        println!("{:?} -> {}", m, m.describe());
+    }
+}
+'''
+
+[exercise]
+prompt = "Write three functions for `Direction`. `turn_right(d)` turns the direction one step clockwise (North -> East -> South -> West -> North). `opposite(d)` returns the direction straight across (North <-> South, East <-> West). `is_vertical(d)` returns `true` if the direction is North or South, `false` otherwise. You can write all three with `match`; use the `_` arm for cases you don't want to list one by one."
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn turns_right() {
+        assert_eq!(turn_right(Direction::North), Direction::East);
+        assert_eq!(turn_right(Direction::East), Direction::South);
+        assert_eq!(turn_right(Direction::South), Direction::West);
+        assert_eq!(turn_right(Direction::West), Direction::North);
+    }
+
+    #[test]
+    fn opposite_direction() {
+        assert_eq!(opposite(Direction::North), Direction::South);
+        assert_eq!(opposite(Direction::East), Direction::West);
+        assert_eq!(opposite(Direction::South), Direction::North);
+        assert_eq!(opposite(Direction::West), Direction::East);
+    }
+
+    #[test]
+    fn vertical() {
+        assert!(is_vertical(Direction::North));
+        assert!(is_vertical(Direction::South));
+        assert!(!is_vertical(Direction::East));
+        assert!(!is_vertical(Direction::West));
+    }
+}
+'''

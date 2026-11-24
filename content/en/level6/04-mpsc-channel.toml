@@ -1,0 +1,100 @@
+title = "mpsc Channels: Passing Messages Between Threads"
+body_md = '''
+## Why
+
+Protecting shared data with a lock is not the only way for threads to
+work together. The other way is not to share the data at all: each
+thread does its own job and sends the result as a message. A well-known
+piece of advice from the Go world puts it like this: "Do not communicate
+by sharing memory; instead, share memory by communicating."
+
+In Rust the tool for this is a channel: a value goes in at one end and
+comes out at the other. The standard library's channel lives in the
+`std::sync::mpsc` module. mpsc means "multi-producer, single-consumer":
+there can be many senders, but only one receiver. Because there is no
+lock involved, the code is often simpler, and it is harder to end up in
+a deadlock.
+
+## How
+
+`mpsc::channel()` returns a pair: the sending end, `Sender<T>`, and the
+receiving end, `Receiver<T>`. They are usually named `tx` and `rx`.
+
+```rust
+use std::sync::mpsc;
+use std::thread;
+
+let (tx, rx) = mpsc::channel();
+let tx2 = tx.clone();
+thread::spawn(move || tx.send(1).unwrap());
+thread::spawn(move || tx2.send(2).unwrap());
+let mut got: Vec<i32> = rx.iter().take(2).collect();
+got.sort();
+```
+
+- `tx.send(v)` puts the value into the channel. The value is moved to
+  the receiver; you can't use it after sending it.
+- `rx.recv()` waits until a message arrives. If no message is waiting
+  and every `Sender` has been dropped, it returns `Err`.
+- `rx.iter()` or `for v in rx` gives you the messages one by one as they
+  arrive.
+- If several threads will send, you give each of them its own `Sender`
+  with `tx.clone()`. A `Receiver` has no `clone`.
+
+## Watch out
+
+- The channel closes when every `Sender` has been dropped; `for v in rx`
+  and `rx.iter()` only end then. If you handed out clones to the
+  threads, the original `tx` in your hands is still alive. If you don't
+  let go of it with `drop(tx)`, the loop waits for messages forever.
+- The order of messages coming from different threads is not fixed. In a
+  test, sort the result first and compare afterwards.
+- If the receiver has been dropped, `send` returns `Err`; there is
+  nobody left to take the message.
+'''
+example = '''
+use std::sync::mpsc;
+use std::thread;
+
+fn main() {
+    let (tx, rx) = mpsc::channel();
+
+    for id in 0..3 {
+        let tx = tx.clone();
+        thread::spawn(move || {
+            tx.send(id * 100).unwrap();
+        });
+    }
+    // If we don't drop the original tx, the rx.iter() below never ends.
+    drop(tx);
+
+    let mut results: Vec<i32> = rx.iter().collect();
+    results.sort();
+    println!("{:?}", results);
+}
+'''
+
+[exercise]
+prompt = "`collect_from_workers(workers)` takes a `u32`. Start a thread for each `id` in `0..workers`; each thread sends the value `id * 10` into the channel. Collect all the values that arrive, sort them from smallest to largest and return them as a `Vec<u32>`. Example: `collect_from_workers(3)` → `[0, 10, 20]`; if `workers` is 0, an empty list. Hint: if you collect the messages with `rx.iter()`, don't forget to `drop` the original `tx`, or the loop never ends."
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn three_workers() {
+        assert_eq!(collect_from_workers(3), vec![0, 10, 20]);
+    }
+
+    #[test]
+    fn no_workers() {
+        assert_eq!(collect_from_workers(0), Vec::<u32>::new());
+    }
+
+    #[test]
+    fn ten_workers() {
+        let expected: Vec<u32> = (0..10).map(|i| i * 10).collect();
+        assert_eq!(collect_from_workers(10), expected);
+    }
+}
+'''

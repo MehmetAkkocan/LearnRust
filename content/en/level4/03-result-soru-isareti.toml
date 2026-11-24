@@ -1,0 +1,109 @@
+title = "Result and the ? Operator"
+body_md = '''
+## Why
+
+Some things don't always work: the text a user typed may not be a number,
+the file you want to open may not be there. Many languages throw an
+exception in these cases; forget to catch it and the program crashes
+somewhere you never expected. In Rust the error is part of the function's
+return value: a function that can fail returns `Result<T, E>`. One look at
+the signature tells you "this can go wrong". And to get at the value
+inside, you first have to tell the two cases apart.
+
+## How
+
+`Result` is an enum with two variants: `Ok(value)` when things went well,
+`Err(error)` when they didn't.
+
+```rust
+fn parse_age(s: &str) -> Result<u8, std::num::ParseIntError> {
+    s.trim().parse::<u8>()
+}
+
+match parse_age("42") {
+    Ok(age) => println!("age {}", age),
+    Err(e) => println!("error: {}", e),
+}
+```
+
+`parse` tries to turn text into a number. You have to say which type you
+want: either write `parse::<u8>()` or give the variable a type with
+`let n: u8 = ...`. `"abc"` gives `Err` because it isn't a number, and so
+does `"300"` because it doesn't fit in a `u8`.
+
+Most of the time you don't deal with the error yourself; you hand it back
+to your caller. That's what `?` does:
+
+```rust
+fn double_age(s: &str) -> Result<u32, std::num::ParseIntError> {
+    let age = s.trim().parse::<u32>()?;
+    Ok(age * 2)
+}
+```
+
+Here is how `?` works: if the result is `Ok(v)`, you get `v` and the code
+carries on. If it is `Err(e)`, the function ends on that line and returns
+`Err(e)`.
+
+- `unwrap_or(0)`: gives you the value inside on `Ok`, and the fallback you
+  passed on `Err`.
+- `is_ok()` and `is_err()` tell you which case you have, as a `bool`.
+- `ok_or(error)` turns an `Option` into a `Result`: `Some(v)` → `Ok(v)`,
+  `None` → `Err(error)`.
+
+## Watch out
+
+- You can only write `?` in a function that itself returns a `Result` (or
+  an `Option`), because on an error the function returns with that error.
+  To use it in `main`, give `main` a `Result` return type too, such as
+  `Result<(), ParseIntError>`.
+- `unwrap()` and `expect("message")` give you the value on `Ok` and stop
+  the program with a panic on `Err`. That's fine in throwaway code; in a
+  real program, use them only where you're sure no error can happen.
+- The type of the error you pass along with `?` has to match the error
+  type your function returns. In a function whose error type is
+  `ParseIntError`, using `?` on an error of another type doesn't compile.
+  The next lesson shows how to collect different errors in one function.
+- If you don't use a returned `Result` at all, the compiler warns you with
+  `unused Result that must be used`, which makes it hard to lose an error
+  silently.
+'''
+example = '''
+use std::num::ParseIntError;
+
+fn parse_and_add(a: &str, b: &str) -> Result<i32, ParseIntError> {
+    let x: i32 = a.trim().parse()?;
+    let y: i32 = b.trim().parse()?;
+    Ok(x + y)
+}
+
+fn main() {
+    match parse_and_add("20", " 22 ") {
+        Ok(sum) => println!("Sum: {}", sum),
+        Err(e) => println!("Error: {}", e),
+    }
+    match parse_and_add("20", "abc") {
+        Ok(sum) => println!("Sum: {}", sum),
+        Err(e) => println!("Error: {}", e),
+    }
+}
+'''
+
+[exercise]
+prompt = '''Write `parse_and_double(s: &str) -> Result<i32, ParseIntError>`. Remove the whitespace at the start and end of the text, turn the rest into an `i32`, and return twice that number inside `Ok`. If the text can't be turned into a number, pass on the error from `parse` unchanged with `?`. Example: `"21"` → `Ok(42)`, `"  -4 "` → `Ok(-8)`, `"abc"` → `Err(...)`.'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn success() {
+        assert_eq!(parse_and_double("21"), Ok(42));
+        assert_eq!(parse_and_double("  -4 "), Ok(-8));
+    }
+    #[test]
+    fn failure() {
+        assert!(parse_and_double("abc").is_err());
+        assert!(parse_and_double("").is_err());
+    }
+}
+'''

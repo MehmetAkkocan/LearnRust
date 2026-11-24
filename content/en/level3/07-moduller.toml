@@ -1,0 +1,128 @@
+title = "Modules: mod, pub, use"
+body_md = '''
+## Why
+
+As a program grows, the functions and types pile up. If they all sit in one
+place, things get hard to find and names start to clash: you can't write two
+different `area` functions in the same place. A module splits the code into
+named compartments. Things that belong together live in the same module;
+`rect::area` and `circle::area` exist side by side. The second benefit is
+privacy: you decide what a module opens up to the outside. Whatever you don't
+open up is your own business; change it later and the code that uses the
+module doesn't break.
+
+## How
+
+You define a module with `mod`. In this lesson everything is in one file.
+
+```rust
+mod geometry {
+    pub fn square_area(side: u32) -> u32 {
+        side * side
+    }
+
+    pub mod rect {
+        pub fn area(w: u32, h: u32) -> u32 {
+            w * h
+        }
+    }
+}
+
+use geometry::rect;
+
+fn main() {
+    let a = geometry::square_area(3);
+    let b = rect::area(2, 5);
+    println!("{} {}", a, b); // 9 10
+}
+```
+
+- Everything inside a module starts out private: it's visible only from
+  inside that module. If you want it to be usable from outside, put `pub` in
+  front of it.
+- You reach an item by writing its path with `::`:
+  `geometry::rect::area(2, 5)`. A path starts from where you are; inside
+  `geometry`, `rect::area(2, 5)` is enough.
+- `use` shortens a long path. After `use geometry::rect;` you only need to say
+  `rect::area`.
+- From inside a module, `super::` takes you to the parent module and `self::`
+  to the module itself.
+- Even if you write `pub struct`, its fields stay private. So that code
+  outside can create a value, you usually write an associated function such
+  as `pub fn new(...)`.
+
+## Watch out
+
+- Forget `pub` and the compiler says `` function `area` is private ``. In
+  other words, "this function exists, but you can't reach it from here".
+- Making a module `pub` doesn't open up what's inside it. Even with
+  `pub mod rect`, `area` needs its own `pub`.
+- Being in one file changes nothing: outside code can't reach a module's
+  private items. The other direction is allowed; an inner module can see the
+  private items of the module around it.
+- `use` doesn't copy anything; it only gives the item a short name. If the
+  same name comes from two places, rename one of them: `use a::f as g;`.
+'''
+example = '''
+mod bank {
+    pub struct Account {
+        owner: String,
+        balance: i64,
+    }
+
+    impl Account {
+        pub fn new(owner: &str, balance: i64) -> Self {
+            Account { owner: owner.to_string(), balance }
+        }
+
+        pub fn summary(&self) -> String {
+            format!("{}: {}", self.owner, self.balance)
+        }
+    }
+
+    pub mod util {
+        pub fn double(x: i64) -> i64 {
+            helper(x)
+        }
+
+        // not pub: can only be called from inside the util module
+        fn helper(x: i64) -> i64 {
+            x * 2
+        }
+    }
+}
+
+use bank::util;
+use bank::Account;
+
+fn main() {
+    let a = Account::new("Alice", 100);
+    println!("{}", a.summary());
+    println!("{}", util::double(21));
+}
+'''
+
+[exercise]
+prompt = "Fill in the three functions in the given code. `geometry::rect::area(w, h)` returns `w * h`. `geometry::rect::perimeter(w, h)` returns `2 * (w + h)`; e.g. 14 for 3 and 4. `geometry::square_area(side)` returns the area of the square; don't do the multiplication here yourself, call `rect::area`. Don't remove the `pub` in front of the modules and functions; if you do, the tests can't reach these functions."
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rect_area() {
+        assert_eq!(geometry::rect::area(3, 4), 12);
+        assert_eq!(geometry::rect::area(0, 9), 0);
+    }
+
+    #[test]
+    fn rect_perimeter() {
+        assert_eq!(geometry::rect::perimeter(3, 4), 14);
+    }
+
+    #[test]
+    fn area_of_square() {
+        assert_eq!(geometry::square_area(5), 25);
+    }
+}
+'''

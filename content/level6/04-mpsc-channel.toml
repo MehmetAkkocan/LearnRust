@@ -1,0 +1,127 @@
+id = "6-04"
+title = "mpsc Channel: Thread'ler Arasında Mesajlaşmak"
+read_points = 10
+body_md = '''
+## Neden
+
+Thread'lerin birlikte çalışması için aynı veriyi lock'la korumak tek yol
+değil. Öbür yol, veriyi hiç ortak tutmamak: her thread kendi işini
+yapar, sonucunu mesaj olarak yollar. Go dünyasından bilinen bir öğüt
+bunu şöyle söyler: "Belleği paylaşarak haberleşmeyin; haberleşerek
+belleği paylaşın."
+
+Rust'ta bunun aracı channel'dır: bir ucundan değer konur, öbür ucundan
+alınır. Standart kütüphanedeki channel `std::sync::mpsc` modülündedir.
+mpsc, "multi-producer, single-consumer" demek: gönderen çok olabilir,
+alan tektir. Ortada lock olmadığı için kod çoğu zaman daha sade olur,
+deadlock'a düşmek de zorlaşır.
+
+## Nasıl
+
+`mpsc::channel()` bir çift döndürür: gönderen uç `Sender<T>`, alan uç
+`Receiver<T>`. Bunlara genellikle `tx` ve `rx` adı verilir.
+
+```rust
+use std::sync::mpsc;
+use std::thread;
+
+let (tx, rx) = mpsc::channel();
+let tx2 = tx.clone();
+thread::spawn(move || tx.send(1).unwrap());
+thread::spawn(move || tx2.send(2).unwrap());
+let mut got: Vec<i32> = rx.iter().take(2).collect();
+got.sort();
+```
+
+- `tx.send(v)` değeri channel'a koyar. Değer alıcıya taşınır (move);
+  gönderdikten sonra onu kullanamazsın.
+- `rx.recv()` bir mesaj gelene kadar bekler. Bekleyen mesaj kalmamış ve
+  bütün `Sender`'lar silinmişse `Err` döndürür.
+- `rx.iter()` ya da `for v in rx` mesajları geldikçe tek tek verir.
+- Birden çok thread gönderecekse her birine `tx.clone()` ile kendi
+  `Sender`'ını verirsin. `Receiver` için `clone` yoktur.
+
+## Dikkat
+
+- Channel, bütün `Sender`'lar silinince (drop) kapanır; `for v in rx` ve
+  `rx.iter()` ancak o zaman biter. Thread'lere `clone` dağıttıysan
+  elindeki asıl `tx` hâlâ duruyordur. Onu `drop(tx)` ile bırakmazsan
+  döngü sonsuza kadar mesaj bekler.
+- Farklı thread'lerden gelen mesajların sırası belli değildir. Testte
+  sonucu önce sırala, sonra karşılaştır.
+- Alıcı silinmişse `send` `Err` döndürür; mesajı alacak kimse
+  kalmamıştır.
+'''
+example = '''
+use std::sync::mpsc;
+use std::thread;
+
+fn main() {
+    let (tx, rx) = mpsc::channel();
+
+    for id in 0..3 {
+        let tx = tx.clone();
+        thread::spawn(move || {
+            tx.send(id * 100).unwrap();
+        });
+    }
+    // Elimizdeki asıl tx'i bırakmazsak aşağıdaki rx.iter() hiç bitmez.
+    drop(tx);
+
+    let mut results: Vec<i32> = rx.iter().collect();
+    results.sort();
+    println!("{:?}", results);
+}
+'''
+
+[exercise]
+prompt = "`collect_from_workers(workers)` bir `u32` alır. `0..workers` aralığındaki her `id` için bir thread aç; her thread `id * 10` değerini channel'a göndersin. Gelen bütün değerleri topla, küçükten büyüğe sırala ve `Vec<u32>` olarak döndür. Örnek: `collect_from_workers(3)` → `[0, 10, 20]`; `workers` 0 ise boş liste. İpucu: mesajları `rx.iter()` ile topluyorsan asıl `tx`'i `drop` etmeyi unutma, yoksa döngü bitmez."
+starter = '''
+use std::sync::mpsc;
+use std::thread;
+
+pub fn collect_from_workers(workers: u32) -> Vec<u32> {
+    todo!()
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn uc_isci() {
+        assert_eq!(collect_from_workers(3), vec![0, 10, 20]);
+    }
+
+    #[test]
+    fn isci_yok() {
+        assert_eq!(collect_from_workers(0), Vec::<u32>::new());
+    }
+
+    #[test]
+    fn on_isci() {
+        let expected: Vec<u32> = (0..10).map(|i| i * 10).collect();
+        assert_eq!(collect_from_workers(10), expected);
+    }
+}
+'''
+solution = '''
+use std::sync::mpsc;
+use std::thread;
+
+pub fn collect_from_workers(workers: u32) -> Vec<u32> {
+    let (tx, rx) = mpsc::channel();
+    for id in 0..workers {
+        let tx = tx.clone();
+        thread::spawn(move || {
+            tx.send(id * 10).unwrap();
+        });
+    }
+    drop(tx);
+    let mut out: Vec<u32> = rx.iter().collect();
+    out.sort();
+    out
+}
+'''
+points = 30

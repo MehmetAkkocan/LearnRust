@@ -1,0 +1,83 @@
+title = "Setup and Cargo"
+body_md = '''
+## Why
+
+You only need to know three tools to start writing Rust. `rustup` installs
+Rust on your computer and keeps it up to date. `rustc` is the compiler: it
+turns your code into a program you can run. `cargo` does all the everyday
+work: it creates projects, compiles code, runs the program, runs the tests and
+downloads libraries other people wrote. You almost never call `rustc`
+yourself; `cargo` calls it for you.
+
+## How
+
+The commands you will use most:
+
+```text
+cargo new hello        # creates a new project folder named "hello"
+cargo run              # compiles, then runs
+cargo check            # only looks for errors, builds no program
+cargo build --release  # builds a fast, optimized program
+cargo test             # runs the tests
+```
+
+`cargo new` sets up two files. `Cargo.toml` holds the project's name, its
+version and its dependencies; a dependency is a library your project uses.
+`src/main.rs` is the program's code; the program starts at the `main`
+function in it. Build output goes into the `target/` folder. That folder can
+be rebuilt at any time, so you don't add it to git.
+
+When your code has an error, the compiler shows you where it is and often
+tells you how to fix it. Read the message all the way through; it is the most
+useful thing you have while learning Rust.
+
+In this app's exercises you don't type commands. You either fill in an empty
+function or fix code that compiles but gives the wrong result; ready-made
+tests check the outcome. The first exercise gives you a broken version of this
+function:
+
+```rust
+fn version_line(name: &str, version: &str) -> String {
+    format!("{} v{}", name, version)
+}
+```
+
+`format!` builds a piece of text: it puts the values you list after the comma
+into the `{}` slots, in order. `version_line("app", "1.0")` gives
+`"app v1.0"`. `println!` works the same way, but prints the text to the
+screen. The `!` at the end of their names means they are macros, not
+functions; for now you can use them just like functions.
+
+## Watch out
+
+- Use `cargo check` to look for errors while you write. It builds no program,
+  so it finishes sooner than `cargo run`.
+- `cargo build` and `cargo run` normally produce a debug build: it compiles
+  quickly but the program runs slowly. If you want to measure how fast your
+  program is, build with `--release`.
+- Don't brush off compiler warnings. The program still compiles with a
+  warning, but a warning usually points at a real problem.
+'''
+example = '''
+fn version_line(name: &str, version: &str) -> String {
+    format!("{} v{}", name, version)
+}
+
+fn main() {
+    println!("{}", version_line("hello", "0.1.0"));
+}
+'''
+
+[exercise]
+prompt = "`version_line(name, version)` takes two pieces of text and joins them as \"<name> v<version>\". Example: `version_line(\"app\", \"1.0\")` → \"app v1.0\". The given code compiles, but it leaves out the \"v\" in front of the version. Fix the code."
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn version_line_format() {
+        assert_eq!(version_line("app", "1.0"), "app v1.0");
+        assert_eq!(version_line("rustlings", "0.3.2"), "rustlings v0.3.2");
+    }
+}
+'''

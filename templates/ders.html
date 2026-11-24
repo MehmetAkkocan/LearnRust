@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<article class="lesson">
+  <p class="crumbs"><a href="/">{{ t.nav_home }}</a> &rsaquo; <a href="/seviye/{{ level_slug }}">{{ level_title }}</a></p>
+  <h1>{{ lesson_title }}</h1>
+  <div class="lesson-body">{{ body_html|safe }}</div>
+  <h2>{{ t.example_code }}</h2>
+  <pre class="example"><code>{{ example }}</code></pre>
+
+  <div id="read-box" class="read-box">
+  {% if read %}
+    <p class="result-ok">{{ t.already_read }}</p>
+  {% else %}
+    <button class="button" hx-post="/ders/{{ lesson_id }}/okudum" hx-target="#read-box" hx-swap="innerHTML">{{ t.read_btn }} (+{{ read_points }} {{ t.points_word }})</button>
+  {% endif %}
+  </div>
+
+  <section class="exercise">
+    <h2>{{ t.exercise }}{% if exercise_done %} <span class="badge">{{ t.done }}</span>{% endif %}</h2>
+    <div class="exercise-prompt">{{ prompt_html|safe }}</div>
+    <form hx-post="/ders/{{ lesson_id }}/calistir" hx-target="#run-result" hx-swap="innerHTML" hx-indicator="#run-spinner" hx-disabled-elt="find button" hx-sync="this:drop">
+      <textarea name="code" rows="16" spellcheck="false" autocomplete="off" class="code-input">{{ starter }}</textarea>
+      <button type="submit" class="button">{{ t.run_btn }} (+{{ exercise_points }} {{ t.points_word }})</button>
+      <span id="run-spinner" class="htmx-indicator">{{ t.running }}</span>
+    </form>
+    <div id="run-result" class="run-result"></div>
+  </section>
+
+  <nav class="lesson-nav">
+    {% if has_next %}<a class="button" href="/ders/{{ next_id }}">{{ t.next_lesson }}: {{ next_title }} &rarr;</a>
+    {% else %}<a class="button" href="/seviye/{{ level_slug }}">{{ t.back_to_level }}</a>
+    {% if has_quiz && level_complete %} <a class="button quiz-link" href="/seviye/{{ level_slug }}/test">{{ t.level_quiz }}</a>{% endif %}{% endif %}
+  </nav>
+</article>
+{% endblock %}

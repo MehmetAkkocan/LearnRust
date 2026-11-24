@@ -1,0 +1,190 @@
+id = "7-06"
+title = "Derleyici Hatalarını Okumak ve Kodu Yeniden Düzenlemek"
+read_points = 10
+body_md = '''
+## Neden
+
+Borrow checker hata verdiğinde ilk akla gelen, bir `clone()` ekleyip geçmektir. Bu çoğu zaman sorunu çözmez, üstünü örter. Hata mesajı aslında sana kodun yapısı hakkında bir şey söyler: aynı veriye aynı anda iki erişim var ve en az biri yazıyor. Mesajı okumayı öğrenirsen ne yapacağını da görürsün: kodu, bu iki erişim çakışmayacak şekilde yeniden düzenlersin.
+
+## Nasıl
+
+Mesajda önce hata koduna (`E0502` gibi) ve okların gösterdiği satırlara bak. Derleyici ilk borrow'un nerede başladığını, ikincisinin nerede geldiğini ve ilkinin sonra nerede kullanıldığını ayrı ayrı işaretler. En sık göreceğin üç hata:
+
+```text
+error[E0502]: cannot borrow `*self` as mutable because it is also borrowed as immutable
+```
+
+Yani: "`self` şu an okumak için ödünç alınmış; onu değiştirmek için yeniden ödünç alamazsın." Tipik sebep, `for item in &self.items` döngüsünün içinde `&mut self` alan bir metot çağırmaktır. Metot çağrısı `self`'in tamamını ödünç alır; `self.log.push(..)` gibi bir alan erişimi ise yalnızca o alanı. Derleyici `items` ile `log`'un ayrı alanlar olduğunu görür ve izin verir. İkinci yol: elinde referans tutmak yerine **indeks** tut. İndeks sadece bir sayıdır, hiçbir şeyi ödünç almaz; değişikliği sonra `self.items[i]` üzerinden yaparsın.
+
+```text
+error[E0499]: cannot borrow `*v` as mutable more than once at a time
+```
+
+Yani: "Aynı anda iki `&mut` olamaz." `let a = &mut v[0]; let b = &mut v[1];` yazıp ikisini de kullanırsan çıkar. İşleri sıraya koy (`v[0] -= x; v[1] += x;`) ya da `v.split_at_mut(1)` ile birbirine değmeyen iki slice al.
+
+```text
+error[E0597]: `x` does not live long enough
+```
+
+Yani: "Referans, gösterdiği değerden daha uzun yaşıyor." Değeri, referansı kullandığın yeri de içine alan dış kapsamda tanımla; ya da referans yerine değerin kendisini (`String`, kopya) taşı.
+
+## Dikkat
+
+- `clone()` ya da `Rc<RefCell<_>>` hatayı susturur ama tasarımdaki sorunu çoğu zaman yerinde bırakır.
+- Bir referans ne kadar kısa yaşarsa o kadar az çakışır: gereken değeri yerel bir değişkene kopyala.
+- Aynı struct'ta sürekli bu hatalara takılıyorsan alanlarını iki ayrı struct'a bölmeyi düşün.
+- Borrow checker'ı `unsafe` ile aşmaya çalışma. Güvenli bir düzenleme neredeyse her zaman vardır.
+'''
+example = '''
+struct Inventory {
+    items: Vec<String>,
+    log: Vec<String>,
+}
+
+impl Inventory {
+    fn log_all(&mut self) {
+        // Burada self.record(item) yazsaydık E0502 alırdık; onun yerine alanlara doğrudan erişiyoruz.
+        for item in &self.items {
+            self.log.push(format!("saw:{}", item));
+        }
+    }
+}
+
+fn transfer(v: &mut [i32], from: usize, to: usize, amount: i32) {
+    v[from] -= amount;
+    v[to] += amount;
+}
+
+fn main() {
+    let mut inv = Inventory { items: vec![String::from("kalem")], log: Vec::new() };
+    inv.log_all();
+    println!("{:?}", inv.log);
+
+    let mut v = [10, 0];
+    transfer(&mut v, 0, 1, 4);
+    println!("{:?}", v);
+
+    let (a, b) = v.split_at_mut(1);
+    a[0] += b[0];
+    println!("{:?}", v);
+}
+'''
+
+[exercise]
+prompt = "Üç parça var; kod derleniyor ama yanlış ya da eksik çalışıyor. (1) `log_all`: `items` içindeki her öğe için `log`'a `\"saw:<öğe>\"` ekle (`\"ab\"` için `\"saw:ab\"`). Bunu `&mut self` alan bir yardımcı metotla yapmaya kalkarsan E0502 alırsın; döngüde `self.items` ve `self.log` alanlarını doğrudan kullan. (2) `upcase_longest`: en uzun öğeyi büyük harfe çevir; aynı uzunlukta birden fazla varsa ilkini. Liste boşsa hiçbir şey yapma. Öğeye referans tutma: hazır verilen `longest_index()` ile indeksi al, sonra `self.items[i]`'yi değiştir. (3) `transfer`: `v[from]`'dan `amount` çıkar, `v[to]`'ya ekle. İki `&mut` almak (E0499) yerine iki işlemi art arda yaz. Örnek: `[10, 0, 5]` üzerinde `transfer(&mut v, 0, 1, 4)` → `[6, 4, 5]`."
+starter = '''
+pub struct Inventory {
+    pub items: Vec<String>,
+    pub log: Vec<String>,
+}
+
+impl Inventory {
+    pub fn longest_index(&self) -> Option<usize> {
+        let mut best: Option<usize> = None;
+        for (i, s) in self.items.iter().enumerate() {
+            match best {
+                Some(b) if self.items[b].len() >= s.len() => {}
+                _ => best = Some(i),
+            }
+        }
+        best
+    }
+
+    pub fn log_all(&mut self) {
+        // Hatalı sürüm: öğe adını kaydetmiyor.
+        for _ in &self.items {
+            self.log.push(String::from("saw:"));
+        }
+    }
+
+    pub fn upcase_longest(&mut self) {
+        todo!()
+    }
+}
+
+pub fn transfer(v: &mut [i32], from: usize, to: usize, amount: i32) {
+    // Hatalı sürüm: hedefe ekleme unutulmuş.
+    v[from] -= amount;
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn sample() -> Inventory {
+        Inventory {
+            items: vec![String::from("ab"), String::from("abcd"), String::from("cdef")],
+            log: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn log_all_records_names() {
+        let mut inv = sample();
+        inv.log_all();
+        assert_eq!(inv.log, vec!["saw:ab", "saw:abcd", "saw:cdef"]);
+    }
+
+    #[test]
+    fn upcase_longest_first_tie() {
+        let mut inv = sample();
+        inv.upcase_longest();
+        assert_eq!(inv.items, vec!["ab", "ABCD", "cdef"]);
+    }
+
+    #[test]
+    fn upcase_longest_empty() {
+        let mut inv = Inventory { items: Vec::new(), log: Vec::new() };
+        inv.upcase_longest();
+        assert!(inv.items.is_empty());
+    }
+
+    #[test]
+    fn transfer_moves_amount() {
+        let mut v = [10, 0, 5];
+        transfer(&mut v, 0, 1, 4);
+        assert_eq!(v, [6, 4, 5]);
+        transfer(&mut v, 2, 0, 5);
+        assert_eq!(v, [11, 4, 0]);
+    }
+}
+'''
+solution = '''
+pub struct Inventory {
+    pub items: Vec<String>,
+    pub log: Vec<String>,
+}
+
+impl Inventory {
+    pub fn longest_index(&self) -> Option<usize> {
+        let mut best: Option<usize> = None;
+        for (i, s) in self.items.iter().enumerate() {
+            match best {
+                Some(b) if self.items[b].len() >= s.len() => {}
+                _ => best = Some(i),
+            }
+        }
+        best
+    }
+
+    pub fn log_all(&mut self) {
+        for item in &self.items {
+            self.log.push(format!("saw:{}", item));
+        }
+    }
+
+    pub fn upcase_longest(&mut self) {
+        if let Some(i) = self.longest_index() {
+            let upper = self.items[i].to_uppercase();
+            self.items[i] = upper;
+        }
+    }
+}
+
+pub fn transfer(v: &mut [i32], from: usize, to: usize, amount: i32) {
+    v[from] -= amount;
+    v[to] += amount;
+}
+'''
+points = 30

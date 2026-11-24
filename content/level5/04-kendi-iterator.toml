@@ -1,0 +1,161 @@
+id = "5-04"
+title = "Kendi Iterator'ını Yaz"
+read_points = 10
+body_md = '''
+## Neden
+
+`for` döngüsü ve geçen derste gördüğün `map`, `filter`, `sum` gibi metotlar
+yalnız `Vec` ile çalışmaz; `Iterator` trait'ini uygulayan her tiple çalışır.
+Kendi tipin için bu trait'i uygularsan onu da `for` ile dönebilir, adaptör
+zincirine sokabilirsin. Yazman gereken tek metot `next`'tir; gerisi hazır
+gelir.
+
+## Nasıl
+
+`Iterator` trait'i senden iki şey ister:
+
+- `type Item`: ürettiğin öğelerin tipi. Trait'in içinde böyle tanımlanan
+  tipe associated type denir.
+- `next`: sıradaki öğeyi `Some(öğe)` olarak döndürür; öğe kalmadıysa `None`
+  döndürür.
+
+Geri sayan bir iterator:
+
+```rust
+struct Countdown {
+    n: u32,
+}
+
+impl Iterator for Countdown {
+    type Item = u32;
+
+    fn next(&mut self) -> Option<u32> {
+        if self.n == 0 {
+            None
+        } else {
+            let current = self.n;
+            self.n -= 1;
+            Some(current)
+        }
+    }
+}
+```
+
+Iterator nerede kaldığını kendi alanlarında tutar; burada `n`. Her `next`
+çağrısı bir öğe verir ve durumu bir adım ilerletir. `next` bu yüzden
+`&mut self` alır.
+
+Artık `let c = Countdown { n: 3 };` yazıp `for x in c` ile dönebilirsin;
+sırayla 3, 2, 1 gelir. Adaptörler de hazırdır:
+`Countdown { n: 4 }.map(|x| x * 2).collect::<Vec<_>>()` sana `[8, 6, 4, 2]`
+verir.
+
+Sonu olmayan bir dizi de yazabilirsin: `next` hiç `None` döndürmez, hep
+`Some` döndürür. Böyle bir iterator'ı kullanırken `take(n)` adaptörüyle
+yalnız ilk `n` öğeyi alırsın.
+
+## Dikkat
+
+- `next` içinde durumu ilerletmeyi unutursan hep aynı öğe gelir ve `for`
+  döngüsü hiç bitmez.
+- Sonsuz bir iterator'a doğrudan `collect()` ya da `sum()` deme; program
+  bitmez. Önce `take` ile sınırla.
+- `next`'in asıl dönüş tipi `Option<Self::Item>`'dır. `Item = u32` yazdıysan
+  `Option<u32>` aynı şeydir.
+- `next`'i elle çağıracaksan değişkeni `let mut` ile tanımla. `for`
+  döngüsünde buna gerek yok.
+- `for` döngüsü iterator'ı alır (move); döngüden sonra aynı değişkeni
+  kullanamazsın.
+'''
+example = '''
+struct Countdown {
+    n: u32,
+}
+
+impl Iterator for Countdown {
+    type Item = u32;
+
+    fn next(&mut self) -> Option<u32> {
+        if self.n == 0 {
+            None
+        } else {
+            let current = self.n;
+            self.n -= 1;
+            Some(current)
+        }
+    }
+}
+
+fn main() {
+    for x in (Countdown { n: 3 }) {
+        println!("{}", x);
+    }
+    let doubled: Vec<u32> = Countdown { n: 4 }.map(|x| x * 2).collect();
+    println!("{:?}", doubled);
+}
+'''
+
+[exercise]
+prompt = "`Countdown` için `Iterator` trait'ini tamamla: `next` her çağrıda sırayla `n`, `n - 1`, ..., `1` değerlerini `Some` içinde döndürsün, sayılar bitince `None` döndürsün. Örnek: `Countdown::new(3)` sırayla `3`, `2`, `1` üretir; `Countdown::new(0)` hiç öğe üretmez."
+starter = '''
+struct Countdown {
+    n: u32,
+}
+
+impl Countdown {
+    fn new(n: u32) -> Countdown {
+        Countdown { n }
+    }
+}
+
+impl Iterator for Countdown {
+    type Item = u32;
+
+    fn next(&mut self) -> Option<u32> {
+        todo!()
+    }
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn geri_sayim() {
+        let v: Vec<u32> = Countdown::new(3).collect();
+        assert_eq!(v, vec![3, 2, 1]);
+    }
+    #[test]
+    fn bos_ve_adaptor() {
+        assert_eq!(Countdown::new(0).count(), 0);
+        let s: u32 = Countdown::new(4).map(|x| x * 2).sum();
+        assert_eq!(s, 20);
+    }
+}
+'''
+solution = '''
+struct Countdown {
+    n: u32,
+}
+
+impl Countdown {
+    fn new(n: u32) -> Countdown {
+        Countdown { n }
+    }
+}
+
+impl Iterator for Countdown {
+    type Item = u32;
+
+    fn next(&mut self) -> Option<u32> {
+        if self.n == 0 {
+            None
+        } else {
+            let current = self.n;
+            self.n -= 1;
+            Some(current)
+        }
+    }
+}
+'''
+points = 30

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="{{ t.code }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ title }} · {{ t.brand }}</title>
+<link rel="stylesheet" href="/static/css/app.css">
+<script src="/static/htmx.min.js"></script>
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="/">{{ t.brand }}</a>
+  <nav class="nav"><a href="/">{{ t.nav_home }}</a></nav>
+  {% include "stats.html" %}
+  <details class="lang-menu">
+    <summary title="{{ t.lang_menu }}" aria-label="{{ t.lang_menu }}: {{ t.lang_name }}">
+      <img class="flag" src="/static/img/flags/{{ t.code }}.svg" alt="" width="24" height="16">
+      <span class="lang-name">{{ t.lang_name }}</span>
+    </summary>
+    <ul class="lang-list">
+      <li><a href="/dil/tr" lang="tr" hreflang="tr"{% if t.code == "tr" %} aria-current="true"{% endif %}><img class="flag" src="/static/img/flags/tr.svg" alt="" width="24" height="16"> Türkçe</a></li>
+      <li><a href="/dil/en" lang="en" hreflang="en"{% if t.code == "en" %} aria-current="true"{% endif %}><img class="flag" src="/static/img/flags/en.svg" alt="" width="24" height="16"> English</a></li>
+    </ul>
+  </details>
+</header>
+<main class="content">
+{% block content %}{% endblock %}
+</main>
+<script>
+document.addEventListener('keydown', function (e) {
+  var t = e.target;
+  if (e.key === 'Tab' && t && t.tagName === 'TEXTAREA' && !e.shiftKey) {
+    e.preventDefault();
+    var s = t.selectionStart, en = t.selectionEnd;
+    t.value = t.value.substring(0, s) + '    ' + t.value.substring(en);
+    t.selectionStart = t.selectionEnd = s + 4;
+  }
+  if (e.key === 'Escape') {
+    var open = document.querySelector('.lang-menu[open]');
+    if (open) { open.removeAttribute('open'); open.querySelector('summary').focus(); }
+  }
+});
+document.addEventListener('click', function (e) {
+  var menu = document.querySelector('.lang-menu[open]');
+  if (menu && !menu.contains(e.target)) { menu.removeAttribute('open'); }
+});
+</script>
+</body>
+</html>

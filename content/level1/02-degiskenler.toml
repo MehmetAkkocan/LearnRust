@@ -1,0 +1,96 @@
+id = "1-02"
+title = "Değişkenler ve mut"
+read_points = 10
+body_md = '''
+## Neden
+
+Rust'ta bir değişkeni tanımlarken ayrıca belirtmezsen onu sonradan
+değiştiremezsin: değerini bir kez verirsin, o değer öyle kalır. İlk bakışta
+kısıtlayıcı görünür, ama işini kolaylaştırır. Uzun bir fonksiyonu okurken "bu değer aşağıda bir yerde
+değişmiş olabilir mi?" diye düşünmen gerekmez. Değişmesi gereken değişkenleri
+sen `mut` ile işaretlersin; kodu okuyan kişi de neyin değişebileceğini hemen
+görür.
+
+## Nasıl
+
+Değişkeni `let` ile tanımlarsın. Değerini sonradan değiştireceksen `let mut`
+yazarsın:
+
+```rust
+let x = 5;          // değiştirilemez
+let mut y = 10;     // değiştirilebilir
+y += 1;             // y artık 11
+y *= 2;             // y artık 22
+```
+
+Programın her yerinde aynı kalan sabit değerler için `const` kullanırsın.
+Tipini yazmak zorunludur; adı büyük harflerle yazılır:
+
+```rust
+const MAX_LIVES: u32 = 3;
+```
+
+Bir de shadowing var: aynı adla yeniden `let` yazarsın. Bu, yepyeni bir
+değişkendir; o satırdan sonra o ad artık yenisini gösterir. Yeni değişkenin
+tipi eskisinden farklı olabilir:
+
+```rust
+let spaces = "   ";
+let spaces = spaces.len(); // artık metin değil, sayı: 3
+```
+
+Shadowing ile `mut` aynı şey değildir. `mut` tek bir değişkenin değerini
+değiştirir ve tipi aynı kalmak zorundadır. Shadowing'de her `let` yeni bir
+değişken oluşturur; eski değişken değişmez, sadece o adla ona artık
+ulaşamazsın.
+
+## Dikkat
+
+- `let x = 5; x = 6;` derlenmez. Derleyici `cannot assign twice to immutable
+  variable` der; yani "değiştirilemez bir değişkene ikinci kez değer
+  veremezsin". Çözüm: `let mut x = 5;` yazmak.
+- Her değişkene `mut` yazma. Hiç değiştirmediğin bir `mut` değişken için
+  derleyici uyarı verir.
+- `const` değeri derleme zamanında belli olmalıdır: `3` ya da `60 * 60` gibi.
+  Program çalışırken ortaya çıkan bir değeri (örneğin kullanıcının girdiği
+  sayıyı) `const` yapamazsın; onun için `let` kullan.
+'''
+example = '''
+const MAX_LIVES: u32 = 3;
+
+fn main() {
+    let mut lives = MAX_LIVES;
+    lives -= 1;
+    let lives = lives * 10; // shadowing: aynı adla yeni bir değişken
+    println!("Skor çarpanı: {}", lives);
+}
+'''
+
+[exercise]
+prompt = "`apply_bonus(score: i32) -> i32` fonksiyonunu yaz. Fonksiyon bir skor alır, önce 10 ekler, sonra çıkan sonucu 2 ile çarpar ve döndürür. Örnek: 5 → (5 + 10) * 2 = 30. Bir `let mut` değişkeni kullan: skoru ona koy, `+=` ve `*=` ile değiştir. İpucu: değeri döndürmek için fonksiyonun son satırına değişkenin adını noktalı virgül koymadan yaz."
+starter = '''
+fn apply_bonus(score: i32) -> i32 {
+    todo!()
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn bonus_uygula() {
+        assert_eq!(apply_bonus(5), 30);
+        assert_eq!(apply_bonus(0), 20);
+        assert_eq!(apply_bonus(-10), 0);
+    }
+}
+'''
+solution = '''
+fn apply_bonus(score: i32) -> i32 {
+    let mut total = score;
+    total += 10;
+    total *= 2;
+    total
+}
+'''
+points = 30

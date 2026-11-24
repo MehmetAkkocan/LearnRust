@@ -1,0 +1,165 @@
+id = "4-05"
+title = "Trait: Ortak Davranış"
+read_points = 10
+body_md = '''
+## Neden
+
+Farklı tipler aynı işi yapabilir: dairenin de karenin de alanı hesaplanır;
+hem dosyadan hem ağ bağlantısından veri okunur. "Alanı hesaplanabilen her
+şey" diye bir şey söylemek istediğinde trait yazarsın. Trait bir metot
+listesidir: "bu trait'i uygulayan tipte şu metotlar vardır" der. Böylece
+hem dairelerle hem karelerle çalışan tek bir fonksiyon yazabilirsin.
+Önceki dersteki `Display` ve `Error` da birer trait'ti.
+
+## Nasıl
+
+Trait'in içine metotların imzasını yazarsın. Sonra her tip için
+`impl Trait for Tip` bloğunda gövdeleri doldurursun.
+
+```rust
+trait Area {
+    fn area(&self) -> f64;
+
+    // varsayılan metot: gövdesi hazır, tip isterse kendi sürümünü yazar
+    fn is_large(&self) -> bool {
+        self.area() > 100.0
+    }
+}
+
+struct Circle { r: f64 }
+struct Square { side: f64 }
+
+impl Area for Circle {
+    fn area(&self) -> f64 { 3.14 * self.r * self.r }
+}
+impl Area for Square {
+    fn area(&self) -> f64 { self.side * self.side }
+}
+```
+
+- `area`'nın gövdesi yok; her tip onu kendisi yazmak zorunda.
+- `is_large`'ın gövdesi trait'in içinde. `Circle` ve `Square` onu hiç
+  yazmadan kullanır: `Square { side: 12.0 }.is_large()` `true` verir.
+  İçinde `self.area()` çağrıldığı için her tip kendi alanına göre cevap
+  verir.
+- Bir fonksiyon "`Area` uygulayan herhangi bir tip" alacaksa parametreyi
+  `&impl Area` yaz: `fn describe(shape: &impl Area) -> String`. Bu
+  fonksiyona `&Circle` da `&Square` de verebilirsin.
+- `Debug`, `Clone`, `PartialEq` ve `Display` standart kütüphanenin
+  trait'leridir. `#[derive(Debug, Clone, PartialEq)]` yazınca `impl`
+  bloklarını derleyici senin yerine üretir. `Display` ise türetilemez; onu
+  elle yazarsın.
+
+## Dikkat
+
+- `impl` bloğunda gövdesiz metotlardan birini unutursan kod derlenmez:
+  `not all trait items implemented, missing: area`.
+- Trait başka bir modüldeyse, metotlarını çağırmadan önce trait'i `use` ile
+  getirmen gerekir. Tip elinde olsa bile trait kapsamda değilse derleyici
+  metodu bulamaz.
+- Orphan rule: bir trait'i bir tipe uygulayabilmen için ikisinden en az
+  biri senin crate'inde tanımlanmış olmalı. Kendi trait'ini `Vec<i32>`'ye
+  uygulayabilirsin; `Display`'i kendi struct'ına uygulayabilirsin. Ama
+  `Display`'i `Vec<i32>`'ye uygulayamazsın, çünkü ikisi de standart
+  kütüphaneye ait.
+'''
+example = '''
+trait Area {
+    fn area(&self) -> f64;
+
+    fn is_large(&self) -> bool {
+        self.area() > 100.0
+    }
+}
+
+struct Circle {
+    r: f64,
+}
+
+struct Square {
+    side: f64,
+}
+
+impl Area for Circle {
+    fn area(&self) -> f64 {
+        3.14 * self.r * self.r
+    }
+}
+
+impl Area for Square {
+    fn area(&self) -> f64 {
+        self.side * self.side
+    }
+}
+
+fn describe(shape: &impl Area) -> String {
+    format!("alan = {:.1}, büyük mü = {}", shape.area(), shape.is_large())
+}
+
+fn main() {
+    let c = Circle { r: 2.0 };
+    let s = Square { side: 12.0 };
+    println!("Daire: {}", describe(&c));
+    println!("Kare: {}", describe(&s));
+}
+'''
+
+[exercise]
+prompt = "`Area` trait'i ve `Rect` struct'ı hazır. `Rect` için `area` metodunu yaz: genişlik ile yüksekliğin çarpımını (`w * h`) döndürsün. `is_large` metodunu yazmana gerek yok; trait'teki varsayılan metot, alan 100'den büyükse kendiliğinden `true` verir. Örnek: `Rect { w: 3.0, h: 4.0 }.area()` → `12.0`."
+starter = '''
+trait Area {
+    fn area(&self) -> f64;
+
+    fn is_large(&self) -> bool {
+        self.area() > 100.0
+    }
+}
+
+struct Rect {
+    w: f64,
+    h: f64,
+}
+
+impl Area for Rect {
+    fn area(&self) -> f64 {
+        todo!()
+    }
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn alan() {
+        let r = Rect { w: 3.0, h: 4.0 };
+        assert_eq!(r.area(), 12.0);
+    }
+    #[test]
+    fn buyuk_mu() {
+        assert!(!Rect { w: 3.0, h: 4.0 }.is_large());
+        assert!(Rect { w: 20.0, h: 10.0 }.is_large());
+    }
+}
+'''
+solution = '''
+trait Area {
+    fn area(&self) -> f64;
+
+    fn is_large(&self) -> bool {
+        self.area() > 100.0
+    }
+}
+
+struct Rect {
+    w: f64,
+    h: f64,
+}
+
+impl Area for Rect {
+    fn area(&self) -> f64 {
+        self.w * self.h
+    }
+}
+'''
+points = 30

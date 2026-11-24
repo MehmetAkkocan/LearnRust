@@ -1,0 +1,45 @@
+title = "API Design: Builder, Newtype, From/Into, Default"
+body_md = '''
+## Why
+
+Someone else will use the functions and types you write; maybe that someone is you in six months. In a good API the right use is easy and the wrong use does not compile. Four small tools go a long way in Rust: newtype, `From`/`Into`, `Default` and builder.
+
+## How
+
+**Newtype.** You wrap an existing type in a struct with a single field and give it a new name. Meters and feet are both `f64`, but now one cannot stand in for the other; mix them up and the compiler stops you.
+
+```rust
+struct Meters(f64);
+struct Feet(f64);
+```
+
+**From/Into.** You write the conversion from one type to another in one place. Once you write `impl From<Feet> for Meters`, `feet.into()` works by itself too. Make the parameter `impl Into<Meters>` and the caller can pass either a `Meters` or a `Feet`.
+
+```rust
+impl From<Feet> for Meters {
+    fn from(f: Feet) -> Meters { Meters(f.0 * 0.3048) }
+}
+fn walk(d: impl Into<Meters>) -> Meters { d.into() }
+```
+
+**Default.** With `impl Default` you set the values a type gets "when nothing is said". After that you only need to write the field that differs: `Request { retries: 5, ..Default::default() }`.
+
+**Builder.** A helper type that sets up a struct with many fields step by step. `new()` starts from the default values. Each setter takes `mut self`, changes one field and returns `Self`, so you can chain the calls. At the end `build()` gives you the real value:
+
+```rust
+let req = RequestBuilder::new().url("https://example.com").retries(5).build();
+```
+
+If an invalid setting is possible, make `build()` return a `Result`.
+
+## Watch out
+
+- Don't write a builder for every struct. For two or three fields a plain `new` function is enough.
+- `From` is for conversions that never fail. If the conversion can fail, use `TryFrom`.
+- A function with an `impl Into<..>` parameter is generic: the compiler produces a separate copy for every type it is called with. Don't put it on every parameter; use it where it really makes the caller's life easier.
+- Don't make fields `pub` unless you have to. If all fields of a struct are `pub` and you add one later, the code of everyone who builds it by hand as `Config { .. }` stops compiling.
+- Changing an API after you have published it is expensive. Think about names and types up front.
+'''
+
+[exercise]
+prompt = "Finish a small configuration API: fill in every `todo!()`. (1) `Port::from(80u16)` → `Port(80)`. (2) `Config::default()`: `host` is `\"localhost\"`, `port` is `Port(8080)`, `retries` is `3`. (3) `ConfigBuilder::new()` starts from the default `Config`. The `host`, `port` and `retries` methods each change their own field and return the builder; `port` accepts both a `u16` and a `Port` (`impl Into<Port>`; call `.into()` inside). `build()` returns the finished `Config`. Example: `ConfigBuilder::new().host(\"example.com\").port(443u16).retries(5).build()`."

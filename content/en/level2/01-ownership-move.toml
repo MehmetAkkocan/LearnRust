@@ -1,0 +1,102 @@
+title = "Ownership and Move"
+body_md = '''
+## Why
+
+A running program takes memory, and when it is done with that memory it has
+to give it back. In some languages a garbage collector running in the
+background does this. In others the programmer does it by hand, and
+forgetting causes bugs. Rust takes a different route: every value has exactly
+one owner, and when the owner is done, the value is dropped automatically.
+These rules are called ownership. The compiler checks them, so if you break
+one you find out before the program ever runs. Bugs like using a value after
+it was freed ("use after free") or freeing the same memory twice ("double
+free") are ruled out from the start.
+
+## How
+
+There are three rules:
+
+1. Every value has an owner. The owner is the variable that holds the value.
+2. A value has only one owner at a time.
+3. When the owner goes out of scope, that is, when the `{ }` block it was
+   declared in ends, the value is dropped and its memory is given back.
+
+A `String` keeps its text on the heap. The heap is the memory area used for
+data whose size is only known while the program runs. When you assign a
+`String` to another variable, the text is not copied. The value moves to the
+new variable, and the old variable can no longer be used:
+
+```rust
+let a = String::from("hello");
+let b = a; // the value moved from a to b
+// println!("{}", a); // ERROR: a is no longer valid
+println!("{}", b);
+```
+
+If both stayed valid, both would try to give back the same memory when the
+scope ends. The move prevents that.
+
+Passing a value to a function is also a move. The function becomes the new
+owner, and the value is dropped when the function ends. If you want the value
+back, the function has to return it; the returned value then moves to the
+caller.
+
+## Watch out
+
+If you use a variable after its value has moved, the compiler says:
+
+```
+error[E0382]: borrow of moved value: `a`
+```
+
+It means: "the value in `a` has moved somewhere else, so you can't reach it
+through `a` anymore."
+
+- If you really want two separate copies, call `.clone()`:
+  `let b = a.clone();`. This copies the whole text on the heap, which is slow
+  for large data. Use it when you need a copy, not just to silence the error.
+- A move doesn't only happen on a line like `let b = a;`. It also happens
+  when you pass a value to a function and when a function returns one.
+'''
+example = '''
+fn consume(s: String) -> usize {
+    println!("Consumed: {}", s);
+    s.len()
+}
+
+fn main() {
+    let a = String::from("hello");
+    let b = a;
+    println!("b = {}", b);
+    let n = consume(b);
+    println!("length = {}", n);
+    // b can't be used anymore: the value moved into consume and was dropped when it ended.
+}
+'''
+
+[exercise]
+prompt = '''Write `concat(a: String, b: String) -> String`. The function takes two `String`s (both move into the function) and returns a single `String` with `b` appended after `a`; the caller now owns the result. Example: `"ab"` and `"cd"` → `"abcd"`. Hint: `format!("{}{}", a, b)` writes the two texts one after the other and produces a new `String`.'''
+starter = '''
+fn concat(a: String, b: String) -> String {
+    todo!()
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn concatenates() {
+        let a = String::from("ab");
+        let b = String::from("cd");
+        let c = concat(a, b);
+        assert_eq!(c, "abcd");
+        assert_eq!(concat(String::new(), String::from("x")), "x");
+    }
+}
+'''
+solution = '''
+fn concat(a: String, b: String) -> String {
+    format!("{}{}", a, b)
+}
+'''

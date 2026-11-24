@@ -1,0 +1,119 @@
+id = "2-05"
+title = "Slice"
+read_points = 10
+body_md = '''
+## Neden
+
+Bazen bir metnin ya da dizinin tamamı değil, bir parçası lazım olur: ilk
+kelime, ortadaki üç eleman gibi. O parçayı kopyalayıp yeni bir değer üretmek
+boşa iştir. Slice, var olan verinin bir bölümünü gösteren referanstır: kopya
+yapmaz, verinin sahibi olmaz. Referans olduğu için borrow kuralları onun için
+de geçerlidir. Slice'ı kullandığın sürece derleyici asıl veriyi değiştirmene
+izin vermez; yani slice'ın gösterdiği yer elinin altından kaybolamaz.
+
+## Nasıl
+
+Slice almak için `&` ve köşeli parantez içinde bir aralık yazarsın. Aralığın
+başı dahil, sonu hariçtir:
+
+```rust
+let s = String::from("merhaba dünya");
+let ilk = &s[0..7]; // "merhaba"
+let bas = &s[..3];  // "mer": baştan itibaren
+let son = &s[8..];  // "dünya": sona kadar
+```
+
+Metinden alınan slice'ın tipi `&str`'dir. Diziden alınanın tipi `&[T]` olur:
+`dizi` `[1, 2, 3, 4, 5]` ise `&dizi[1..4]`, `[2, 3, 4]` elemanlarını gösteren
+bir `&[i32]` verir.
+
+Fonksiyonlar slice döndürebilir. Şu fonksiyon bir metnin ilk kelimesini verir:
+
+```rust
+fn ilk_kelime(s: &str) -> &str {
+    for (i, c) in s.char_indices() {
+        if c == ' ' {
+            return &s[..i];
+        }
+    }
+    s
+}
+```
+
+`s.char_indices()` metni karakter karakter gezer ve her adımda iki şey verir:
+karakterin başladığı bayt konumu (`i`) ve karakterin kendisi (`c`). İlk
+boşluğu görünce o konuma kadar olan kısmı döndürüyoruz. Hiç boşluk yoksa
+metnin tamamı dönüyor.
+
+Dönen `&str`, parametreyle gelen metnin bir parçasını gösterir. Bir
+referansın geçerli kaldığı süreye lifetime denir. Burada tek bir referans
+parametresi olduğu için derleyici, dönen referansın o parametre kadar geçerli
+kalacağını kendisi anlar; senin ek bir şey yazman gerekmez.
+
+## Dikkat
+
+- Aralıktaki sayılar karakter sırası değil BAYT konumudur. `ç`, `ğ`, `ı`,
+  `ö`, `ş`, `ü` gibi harfler 2 bayt tutar. Bir harfin ortasından kesersen
+  program panic ile durur: yukarıdaki `s` için `&s[..10]`, `ü`'nün ortasına
+  denk gelir ve mesaj `byte index 10 is not a char boundary` diye başlar.
+- Metnin ya da dizinin sonunu aşan bir aralık da panic'tir. Konumları elle
+  saymak yerine `char_indices()`'in verdiği konumları kullan; onlar her zaman
+  bir karakterin başına denk gelir.
+- Slice'ı kullanmaya devam ederken asıl `String`'i değiştiremezsin; örneğin
+  arada `s.clear()` çağırmak derleme hatasıdır.
+'''
+example = '''
+fn ilk_kelime(s: &str) -> &str {
+    for (i, c) in s.char_indices() {
+        if c == ' ' {
+            return &s[..i];
+        }
+    }
+    s
+}
+
+fn main() {
+    let s = String::from("merhaba dünya");
+    println!("{}", ilk_kelime(&s));
+    println!("{}", ilk_kelime("tek"));
+
+    let dizi = [1, 2, 3, 4, 5];
+    let parca = &dizi[1..4];
+    println!("{:?}", parca);
+}
+'''
+
+[exercise]
+prompt = '''`ilk_kelime(s: &str) -> &str` fonksiyonunu yaz. Fonksiyon metnin ilk boşluğa kadar olan kısmını slice olarak döndürür; metinde boşluk yoksa tamamını döndürür. Örnekler: `"merhaba dünya"` → `"merhaba"`, `"tek"` → `"tek"`, `" başta"` → `""` (metin boşlukla başlıyorsa sonuç boş metindir).'''
+starter = '''
+fn ilk_kelime(s: &str) -> &str {
+    todo!()
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn ilk() {
+        assert_eq!(ilk_kelime("merhaba dünya"), "merhaba");
+        assert_eq!(ilk_kelime("tek"), "tek");
+    }
+    #[test]
+    fn bos() {
+        assert_eq!(ilk_kelime(""), "");
+        assert_eq!(ilk_kelime(" başta"), "");
+    }
+}
+'''
+solution = '''
+fn ilk_kelime(s: &str) -> &str {
+    for (i, c) in s.char_indices() {
+        if c == ' ' {
+            return &s[..i];
+        }
+    }
+    s
+}
+'''
+points = 30

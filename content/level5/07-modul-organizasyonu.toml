@@ -1,0 +1,148 @@
+id = "5-07"
+title = "Modülleri Düzenlemek ve pub(crate)"
+read_points = 10
+body_md = '''
+## Neden
+
+Küçük bir programda bütün fonksiyonlar tek dosyada yan yana durabilir.
+Program büyüdükçe bu liste içinden çıkılmaz olur: hangi fonksiyon neyle
+ilgili, hangisine dışarıdan dokunulabilir? Modüllerle iki şey yaparsın.
+İlgili kodu bir araya toplarsın. Ve neyin dışarıya açık, neyin iç ayrıntı
+olduğunu sen belirlersin. İç ayrıntıyı gizli tutarsan, onu sonradan
+değiştirdiğinde başka yerdeki kod bozulmaz.
+
+## Nasıl
+
+`mod` bir modül açar. Modüller iç içe yazılabilir:
+
+```rust
+mod shop {
+    pub mod price {
+        pub fn with_tax(cents: u32) -> u32 {
+            cents + cents / 5
+        }
+        pub(crate) fn helper() {}
+        fn secret() {}
+    }
+}
+```
+
+Bir öğeye yoluyla ulaşırsın: `shop::price::with_tax(100)`. Yol uzunsa bir
+kez `use shop::price::with_tax;` yaz, sonra yalnızca `with_tax(100)` de.
+
+Bir öğeyi kimin kullanabileceğini başındaki kelime belirler:
+
+- Hiçbir şey yazmazsan öğe gizlidir (private): yalnız tanımlandığı modül ve
+  onun alt modülleri kullanabilir.
+- `pub`: modülün dışından da kullanılabilir. Ama oraya giden yoldaki
+  modüllere de erişebiliyor olman gerekir.
+- `pub(crate)`: aynı crate'in her yerinden kullanılabilir, başka
+  crate'lerden kullanılamaz. Crate, tek seferde derlenen bütündür: senin
+  programın ya da bir kütüphane.
+- `pub(super)`: yalnız bir üst modülün içinden kullanılabilir.
+
+Gerçek projelerde modüller ayrı dosyalarda durur: `mod price;` yazarsın,
+modülün içeriği `price.rs` dosyasına gider. Kurallar aynıdır.
+
+Test modülündeki `use super::*;` de bir yoldur: `super`, bir üst modül
+demektir.
+
+## Dikkat
+
+Gizli bir fonksiyonu dışarıdan çağırırsan, içinde durduğu modül `pub` olsa
+bile derleyici şunu yazar:
+
+```text
+error[E0603]: function `secret` is private
+```
+
+- Bir struct'ı `pub` yapınca alanları kendiliğinden açılmaz; dışarıdan
+  kullanılacak her alana ayrıca `pub` yazarsın.
+- Enum'da durum farklıdır: enum `pub` ise bütün varyantları da açıktır.
+- Her şeye `pub` yazma. Önce gizli bırak, gerçekten gerekince aç. Açtığın
+  bir şeyi sonradan kapatmak, onu kullanan kodu bozar.
+'''
+example = '''
+mod shop {
+    pub mod price {
+        pub fn with_tax(cents: u32, percent: u32) -> u32 {
+            cents + cents * percent / 100
+        }
+
+        pub(crate) fn discount(cents: u32, percent: u32) -> u32 {
+            cents - cents * percent / 100
+        }
+    }
+
+    pub fn final_price(cents: u32, discount_pct: u32, tax_pct: u32) -> u32 {
+        price::with_tax(price::discount(cents, discount_pct), tax_pct)
+    }
+}
+
+use shop::final_price;
+
+fn main() {
+    println!("{}", final_price(1000, 10, 20));
+    println!("{}", shop::price::with_tax(100, 10));
+}
+'''
+
+[exercise]
+prompt = "`bank` modülündeki üç fonksiyonun gövdesini yaz. `account::fee(amount)` işlem ücretini döndürsün: tutarın yüzde 1'i, yani `amount / 100`. Bu fonksiyon `pub(super)` olduğu için yalnız `bank` modülünün içinden çağrılabilir. `account::can_afford(balance, amount)` (`pub(crate)`), bakiye hem tutarı hem ücreti karşılıyorsa `true` döndürsün: `balance >= amount + fee(amount)`. `withdraw(balance, amount)` para yetiyorsa kalan bakiyeyi `Some(balance - amount - ücret)` olarak, yetmiyorsa `None` döndürsün. Örnek: `withdraw(1000, 500)` → `Some(495)`, `withdraw(100, 100)` → `None`. İpucu: `withdraw` içinden diğer ikisine `account::can_afford(...)` ve `account::fee(...)` yoluyla ulaşırsın."
+starter = '''
+mod bank {
+    pub mod account {
+        pub(super) fn fee(amount: u32) -> u32 {
+            todo!()
+        }
+
+        pub(crate) fn can_afford(balance: u32, amount: u32) -> bool {
+            todo!()
+        }
+    }
+
+    pub fn withdraw(balance: u32, amount: u32) -> Option<u32> {
+        todo!()
+    }
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn yeterli_mi() {
+        assert!(bank::account::can_afford(1000, 500));
+        assert!(!bank::account::can_afford(500, 500));
+        assert!(bank::account::can_afford(101, 100));
+    }
+    #[test]
+    fn cekim() {
+        assert_eq!(bank::withdraw(1000, 500), Some(495));
+        assert_eq!(bank::withdraw(100, 100), None);
+        assert_eq!(bank::withdraw(101, 100), Some(0));
+    }
+}
+'''
+solution = '''
+mod bank {
+    pub mod account {
+        pub(super) fn fee(amount: u32) -> u32 {
+            amount / 100
+        }
+
+        pub(crate) fn can_afford(balance: u32, amount: u32) -> bool {
+            balance >= amount + fee(amount)
+        }
+    }
+
+    pub fn withdraw(balance: u32, amount: u32) -> Option<u32> {
+        if account::can_afford(balance, amount) {
+            Some(balance - amount - account::fee(amount))
+        } else {
+            None
+        }
+    }
+}
+'''
+points = 30

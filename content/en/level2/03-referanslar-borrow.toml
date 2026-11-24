@@ -1,0 +1,116 @@
+title = "References and Borrowing"
+body_md = '''
+## Why
+
+When you pass a `String` to a function, the value moves into the function,
+and to get it back the function has to return it. Most of the time, though,
+the function only needs to look at the value. That is what references are
+for: you don't hand the value over, you point to where it is. Rust calls this
+a borrow. It is like borrowing a friend's book: you read it, you give it
+back, and it is still their book the whole time.
+
+## How
+
+To create a reference, put `&` in front of the value. The type of the
+function parameter starts with `&` too:
+
+```rust
+fn length(s: &String) -> usize {
+    s.len()
+}
+
+let s = String::from("hello");
+let n = length(&s); // we lent s out
+println!("{} {}", s, n); // s is still ours
+```
+
+`&String` reads as "a reference to a `String`". When the function ends, the
+reference goes away but the value is not dropped, because the function does
+not own it.
+
+A reference taken with `&` only lets you read; you can't change the value
+through it. In return, any number of `&` references to the same value can
+exist at the same time, because readers can't hurt each other.
+
+You reach the value behind a reference by writing `*r`: after `let r = &x;`,
+`*r` is the value of `x`. Most of the time you don't have to write it. In
+method calls like `s.len()` and inside `println!`, Rust follows the reference
+to the value for you.
+
+## Watch out
+
+- A reference can't outlive the value it points to. You can't return a
+  reference to a variable declared inside the function: when the function
+  ends the variable is dropped, and the reference would point to a value that
+  no longer exists. This is called a "dangling reference", and the compiler
+  won't allow it.
+- Passing a reference does not move the value. That is why you can keep
+  using the variable after the call.
+- For text parameters people usually write `&str` instead of `&String`; then
+  the function accepts both a `String` and text written as `"..."`. The
+  details are in the last lesson of this level.
+'''
+example = '''
+fn length(s: &String) -> usize {
+    s.len()
+}
+
+fn main() {
+    let s = String::from("hello");
+    let n1 = length(&s);
+    let n2 = length(&s);
+    println!("{} has length {} and {}", s, n1, n2);
+}
+'''
+
+[exercise]
+prompt = '''Write two functions. `total_len(a: &String, b: &String) -> usize` adds up the byte lengths (`len()`) of the two texts and returns the sum: `"hello"` and `"rust"` → `9`. `is_longer(a: &String, b: &String) -> bool` returns `true` if `a` is longer than `b`, and `false` otherwise (also when the lengths are equal). Both only borrow the texts; the tests keep using the same `String`s after the call.'''
+starter = '''
+fn total_len(a: &String, b: &String) -> usize {
+    todo!()
+}
+
+fn is_longer(a: &String, b: &String) -> bool {
+    todo!()
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn adds_lengths() {
+        let a = String::from("hello");
+        let b = String::from("rust");
+        assert_eq!(total_len(&a, &b), 9);
+        // Only lent out: a and b are still ours and can be used again.
+        assert_eq!(total_len(&b, &a), 9);
+        assert_eq!(a, "hello");
+        assert_eq!(b, "rust");
+    }
+    #[test]
+    fn empty_text() {
+        let a = String::new();
+        let b = String::from("é");
+        assert_eq!(total_len(&a, &a), 0);
+        assert_eq!(total_len(&a, &b), 2);
+    }
+    #[test]
+    fn compares() {
+        let a = String::from("hello");
+        let b = String::from("rust");
+        assert!(is_longer(&a, &b));
+        assert!(!is_longer(&b, &a));
+        assert!(!is_longer(&a, &a));
+    }
+}
+'''
+solution = '''
+fn total_len(a: &String, b: &String) -> usize {
+    a.len() + b.len()
+}
+
+fn is_longer(a: &String, b: &String) -> bool {
+    a.len() > b.len()
+}
+'''

@@ -1,0 +1,88 @@
+id = "7-01"
+title = "unsafe ve Raw Pointer"
+read_points = 10
+body_md = '''
+## Neden
+
+Derleyici, kodunun bellek açısından güvenli olduğunu kendisi kanıtlayabildiği sürece seni rahat bırakır. Bazı işlerde bunu kanıtlayamaz: donanımla konuşmak, C kodu çağırmak, `Vec` gibi bir veri yapısını sıfırdan yazmak. Böyle yerlerde `unsafe` yazarsın. `unsafe` denetimleri kapatmaz; borrow kuralları aynen sürer. Yalnızca birkaç ek işleme izin verir ve sen de "burası doğru, sorumluluk bende" demiş olursun.
+
+## Nasıl
+
+Bu ek işlemlerin en sık kullanılanı, bir raw pointer'ın gösterdiği değeri okumak ya da değiştirmektir (dereference). Raw pointer (`*const T`, `*mut T`) bir bellek adresidir. Referanstan farkı şu: derleyici onun geçerli olup olmadığını denetlemez. Raw pointer oluşturmak güvenlidir; `unsafe` gerektiren şey onu kullanmaktır:
+
+```rust
+let mut x = 10;
+let p = &mut x as *mut i32;
+unsafe { *p += 5; } // x artık 15
+```
+
+Slice'larla çalışırken işine yarayacak metotlar:
+
+- `v.as_ptr()` ilk elemanı gösteren bir `*const T` verir; `as_mut_ptr()` bunun `*mut T` olanıdır.
+- `p.add(n)` pointer'ı `n` eleman ileri taşır. Bu da `unsafe`'tir: varılan yer slice'ın dışına taşmamalı.
+
+İyi alışkanlık şudur: `unsafe` kısmı küçük tut ve güvenli bir fonksiyonun içine sakla. O fonksiyon gereken koşulu (indeks sınırın içinde mi, slice boş mu) önce kendisi denetler. Böylece fonksiyonu çağıran kişi ne yaparsa yapsın belleği bozamaz. Her `unsafe` bloğun üstüne `// SAFETY:` ile başlayan bir yorum yaz ve koşulun neden sağlandığını söyle. Bu yorumu yazamıyorsan kod hazır değildir.
+
+## Dikkat
+
+- Geçersiz bir pointer'ı (null, sınır dışı ya da silinmiş bir değeri gösteren) dereference edersen undefined behavior (UB) olur. UB, dilin hiçbir söz vermediği durumdur: program çoğu zaman çalışıyor görünür, sonra hiç beklemediğin bir yerde bozulur.
+- Aynı veriye aynı anda iki `&mut` referans üretmek de UB'dir. Raw pointer'la bunu fark etmeden yapabilirsin.
+- `unsafe fn` yazarsan, çağıranın uyması gereken koşulları belge yorumunda `# Safety` başlığı altında anlat.
+- "Derleyici izin vermiyor" tek başına `unsafe` yazmak için sebep değildir. Önce güvenli bir çözüm ara.
+'''
+example = '''
+fn read_at(v: &[i32], idx: usize) -> Option<i32> {
+    if idx < v.len() {
+        // SAFETY: idx < v.len() olduğunu az önce denetledik; pointer slice'ın içinde kalır.
+        Some(unsafe { *v.as_ptr().add(idx) })
+    } else {
+        None
+    }
+}
+
+fn main() {
+    let mut x = 10;
+    let p = &mut x as *mut i32;
+    unsafe {
+        *p += 5;
+    }
+    println!("x = {}", x);
+
+    let data = [7, 8, 9];
+    println!("{:?} {:?}", read_at(&data, 1), read_at(&data, 10));
+}
+'''
+
+[exercise]
+prompt = "`last_raw(v: &[i32]) -> Option<i32>` fonksiyonunu yaz. Slice boşsa `None` döndür. Boş değilse son elemanı `v[..]` ile değil, raw pointer ile oku: `v.as_ptr().add(..)` ile son elemana git, `unsafe` blokta değeri al ve `Some` içinde döndür. Örnek: `[1, 2, 3]` → `Some(3)`, `[]` → `None`. İpucu: slice'ın boş olup olmadığını `v.is_empty()` ya da `v.len()` söyler."
+starter = '''
+fn last_raw(v: &[i32]) -> Option<i32> {
+    todo!()
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn last_element() {
+        assert_eq!(last_raw(&[1, 2, 3]), Some(3));
+        assert_eq!(last_raw(&[5]), Some(5));
+    }
+    #[test]
+    fn empty_slice() {
+        assert_eq!(last_raw(&[]), None);
+    }
+}
+'''
+solution = '''
+fn last_raw(v: &[i32]) -> Option<i32> {
+    if v.is_empty() {
+        None
+    } else {
+        // SAFETY: slice boş değil; len - 1 geçerli bir indeks.
+        Some(unsafe { *v.as_ptr().add(v.len() - 1) })
+    }
+}
+'''
+points = 30

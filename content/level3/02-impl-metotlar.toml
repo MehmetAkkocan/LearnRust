@@ -1,0 +1,194 @@
+id = "3-02"
+title = "impl: Metotlar ve Associated Function'lar"
+read_points = 10
+body_md = '''
+## Neden
+
+Bir banka hesabını düşün. Bakiye bir veridir; para yatırmak ve çekmek o
+veriyle yapılan işlerdir. Bu işleri ortada duran ayrı fonksiyonlar olarak
+yazabilirsin, ama o zaman hangi fonksiyonun hangi tipe ait olduğunu koda bakan
+kişi arayıp bulmak zorunda kalır. `impl` bloğu, bir tiple ilgili fonksiyonları
+o tipin yanında toplar. Çağırması da daha doğal olur:
+`deposit(&mut account, 50)` yerine `account.deposit(50)`.
+
+## Nasıl
+
+Fonksiyonları `impl TipAdi { ... }` bloğunun içine yazarsın.
+
+```rust
+struct Rect { w: u32, h: u32 }
+
+impl Rect {
+    fn new(w: u32, h: u32) -> Self {
+        Rect { w, h }
+    }
+    fn area(&self) -> u32 {
+        self.w * self.h
+    }
+    fn grow(&mut self, k: u32) {
+        self.w *= k;
+        self.h *= k;
+    }
+}
+
+let mut r = Rect::new(2, 3);
+r.grow(2);
+println!("{}", r.area()); // 24
+```
+
+İlk parametresi `self` olan fonksiyona metot denir ve nokta ile çağrılır:
+`r.area()`. `self`, metodu üzerinde çağırdığın değerdir. Üç biçimi var:
+
+- `&self`: değeri yalnızca okur. Çağrıdan sonra `r` olduğu gibi durur.
+- `&mut self`: değeri değiştirir. Bunun için `r`, `let mut` ile tanımlanmış
+  olmalı.
+- `self`: değeri kendine alır (move). Çağrıdan sonra `r`'yi kullanamazsın.
+
+`new` ise `self` almıyor. Böyle fonksiyonlara associated function denir: belli
+bir değere değil, tipin kendisine bağlıdır ve `Rect::new(2, 3)` diye `::` ile
+çağrılır. En çok yeni değer oluşturmak için kullanılır. `new` özel bir kelime
+değil, yalnızca herkesin uyduğu bir alışkanlıktır. `Self` (büyük S), `impl`
+bloğunun ait olduğu tipin kısa adıdır; burada `Rect` demektir.
+
+## Dikkat
+
+- Okumak yetiyorsa `&self` yaz, değiştireceksen `&mut self`. Düz `self`'i
+  yalnızca değerin çağrıdan sonra kullanılmasını istemediğinde seç.
+- `let r = ...` diye tanımladığın bir değerde `&mut self` metodu çağırırsan
+  derlenmez:
+  `` cannot borrow `r` as mutable, as it is not declared as mutable ``.
+  Çözüm: `let mut r`.
+- Bir tip için birden fazla `impl` bloğu yazabilirsin, ama aynı adı taşıyan
+  iki fonksiyon olamaz.
+- Alanla metodun adı aynı olabilir. `a.balance` alanı okur, `a.balance()`
+  metodu çağırır; farkı parantez belirler.
+'''
+example = '''
+#[derive(Debug)]
+struct Rect {
+    w: u32,
+    h: u32,
+}
+
+impl Rect {
+    fn new(w: u32, h: u32) -> Self {
+        Rect { w, h }
+    }
+
+    fn square(side: u32) -> Self {
+        Rect { w: side, h: side }
+    }
+
+    fn area(&self) -> u32 {
+        self.w * self.h
+    }
+
+    fn can_hold(&self, other: &Rect) -> bool {
+        self.w >= other.w && self.h >= other.h
+    }
+
+    fn grow(&mut self, k: u32) {
+        self.w *= k;
+        self.h *= k;
+    }
+}
+
+fn main() {
+    let mut r = Rect::new(2, 3);
+    let s = Rect::square(2);
+    println!("alan: {}", r.area());
+    println!("içine sığar mı: {}", r.can_hold(&s));
+    r.grow(2);
+    println!("{:?}", r);
+}
+'''
+
+[exercise]
+prompt = "`Account` için dört fonksiyon yaz. `new(initial)`: bakiyesi `initial` olan bir hesap döndürür. `deposit(amount)`: bakiyeye `amount` ekler. `withdraw(amount)`: bakiye yetiyorsa `amount` kadar düşer ve `true` döndürür; yetmiyorsa bakiyeye dokunmaz ve `false` döndürür. `balance()`: o anki bakiyeyi döndürür. Örn. 100 ile açılan hesaptan 30 çekince `true` döner ve bakiye 70 olur; aynı hesaptan 200 çekmeye kalkınca `false` döner ve bakiye değişmez."
+starter = '''
+#[derive(Debug)]
+struct Account {
+    balance: i64,
+}
+
+impl Account {
+    fn new(initial: i64) -> Self {
+        todo!()
+    }
+
+    fn deposit(&mut self, amount: i64) {
+        todo!()
+    }
+
+    fn withdraw(&mut self, amount: i64) -> bool {
+        todo!()
+    }
+
+    fn balance(&self) -> i64 {
+        todo!()
+    }
+}
+'''
+tests = '''
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn baslangic() {
+        let a = Account::new(100);
+        assert_eq!(a.balance(), 100);
+    }
+
+    #[test]
+    fn yatir() {
+        let mut a = Account::new(100);
+        a.deposit(50);
+        assert_eq!(a.balance(), 150);
+    }
+
+    #[test]
+    fn cek_basarili() {
+        let mut a = Account::new(100);
+        assert!(a.withdraw(30));
+        assert_eq!(a.balance(), 70);
+    }
+
+    #[test]
+    fn cek_yetersiz() {
+        let mut a = Account::new(100);
+        assert!(!a.withdraw(200));
+        assert_eq!(a.balance(), 100);
+    }
+}
+'''
+solution = '''
+#[derive(Debug)]
+struct Account {
+    balance: i64,
+}
+
+impl Account {
+    fn new(initial: i64) -> Self {
+        Account { balance: initial }
+    }
+
+    fn deposit(&mut self, amount: i64) {
+        self.balance += amount;
+    }
+
+    fn withdraw(&mut self, amount: i64) -> bool {
+        if amount <= self.balance {
+            self.balance -= amount;
+            true
+        } else {
+            false
+        }
+    }
+
+    fn balance(&self) -> i64 {
+        self.balance
+    }
+}
+'''
+points = 30
